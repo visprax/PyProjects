@@ -31,8 +31,8 @@ def timer(func):
 
     return wrap_func
 
-@cached(cache)
 @timer
+@cached(cache)
 def get_titles(url, proxy=False):
     try:
         if proxy:
