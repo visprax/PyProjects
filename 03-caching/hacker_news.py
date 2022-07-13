@@ -1,12 +1,18 @@
 #!/usr/bin/env python3
 
-"""Using caching mechanism to speed up repetitive tasks."""
+""" Parse Hacker News titles into a minimalistic list in terminal.
+We demonstrate caching mechanism to speed up repetitive tasks.
+"""
 
 import sys
 import requests
+from time import time
 from bs4 import BeautifulSoup
 from cachetools import cached, TTLCache
+from rich.console import Console
+from rich.table import Table
 
+cache = TTLCache(maxsize=100, ttl=500)
 
 hacker_news_url = "https://news.ycombinator.com/"
 proxies = { 
@@ -14,7 +20,19 @@ proxies = {
     'https': 'socks5h://127.0.0.1:9050'
 }
 
+def timer(func):
+    """Time the exection of functions."""
+    def wrap_func(*args, **kwargs):
+        t1 = time()
+        result = func(*args, **kwargs)
+        t2 = time()
+        print("Execution time of {}: {:.4f}s".format(func.__name__, (t2-t1)))
+        return result
 
+    return wrap_func
+
+@cached(cache)
+@timer
 def get_titles(url, proxy=False):
     try:
         if proxy:
@@ -37,31 +55,28 @@ def get_titles(url, proxy=False):
             print("Couldn't connect to {}. Exception '{}' occured.".format(url, err))
             sys.exit(1)
 
+    return None
 
+def display_titles(titles):
+    console = Console()
+
+    table = Table(show_header=False, show_lines=True)
+    table.add_column("Title")
+    for title in titles:
+        table.add_row("{}".format(title[0]), style="link {}".format(title[1]))
+
+    console.print(table)
+
+
+@timer
+def many_requests(count=10):
+    for _ in range(count):
+        titles = get_titles(hacker_news_url)
+    
     return titles
-
-    # mirrors_pool = [link["href"] for link in mirrors_pool]
-    # # sort mirrors based on response time
-    # mirrors_res_time = []
-    # for link in mirrors_pool:
-        # try:
-            # response = requests.get(link, proxies=proxies)
-            # if sort:
-                # res_time = response.elapsed.total_seconds()
-                # mirrors_res_time.append([link, res_time])
-            # else:
-                # mirrors_res_time.append(link)
-        # except:
-            # pass
-    # if sort:
-        # mirrors_res_time.sort(key=lambda x: x[1])
-        # mirrors_pool = [url_res_time[0] for url_res_time in mirrors_res_time]
-    # else:
-        # mirrors_pool = mirrors_res_time
-
-    # return mirrors_pool
-
 
 if __name__ == "__main__":
     titles = get_titles(hacker_news_url)
-    print(titles)
+    many_requests()
+
+    display_titles(titles)
