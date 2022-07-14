@@ -6,45 +6,19 @@ import socket
 import time
 from threading import Thread
 
-# listen on all IPv4 interfaces 
-HOST = "0.0.0.0"
-# port to listen on (non-privileged ports are > 1023)
-PORT = 6000 
-
-# parameters passed to socket() are constants. AF_INET is the internet family address for IPv4
-# and SOCK_STREAM is the socket type for TCP
-with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-    # make the port reusable
-    s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    s.bind((HOST, PORT))
-    s.listen()
-    connection, address = s.accept()
-
-    with connection:
-        print("Connected by {}".format(address))
-        while True:
-            # read at most 1024 bytes blockingly
-            data = connection.recv(1024)
-            if not data:
-                break
-            # unlike send(), sendall() will continue to send data 
-            # from bytes until either all data has been sent 
-            # or an error occured
-            connection.sendall(data)
-
 class Server():
-    
     def __init__(self, ip, port):
+        # parameters passed to socket() are constants. 
+        # AF_INET is the internet family address for IPv4
+        # and SOCK_STREAM is the socket type for TCP
         self.socket = socket.socket(socket.AF_INET, socket.STREAM)
-        self.server_address = ("0.0.0.0", 6000)
+        self.server_address = (ip, port)
         self.bind(self.server_address)
         self.socket.listen()
 
         self.format = "utf-8"
         # length of message used for sending message length
         self.header_length = 10
-        # maximum length of messages
-        self.max_length = 1024
         self.commands = {disconnect: "/disconnect", people: "/people", private: "/private"}
         # {connection: {"username": username, "address": address, "join_time": join_time}}
         self.clients = {}
@@ -88,7 +62,8 @@ class Server():
         timestamp = self.now()
         print("{} [NEW CONNECTION] {} connected.".format(timestamp, username))
 
-        self.send_message(connection, "{} Connected to server with username: {}".format(timestamp, self.clients[connection]["username"]))
+        self.send_message(connection, "{} Connected to server with username: {}"\
+                .format(timestamp, self.clients[connection]["username"]))
 
         # send previous messages to the newly connected user
         len_messages = len(self.messages)
@@ -111,5 +86,11 @@ class Server():
 
 
 
+if __name__ == "__main__":
+    # listen on all IPv4 interfaces 
+    host = "0.0.0.0"
+    # port to listen on (non-privileged ports are > 1023)
+    port = 6000
+    chatroom = Server(ip, port) 
 
 
