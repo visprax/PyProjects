@@ -23,7 +23,7 @@ class Server():
         self.commands = {"disconnect": "/disconnect", "people": "/people", "private": "/private"}
         # {connection: {"username": username, "address": address, "join_time": join_time}}
         self.clients = {}
-        # {"username": {"sent": [(time, "message")], "received": [(time, "message")]}}
+        # {"username": [(time, "message")]}
         self.messages = {}
         self.colors = {
                 "purple": '\033[95m',
@@ -80,6 +80,17 @@ class Server():
         for i in range(len_messages):
             self.send_message(connection, self.messages[i]["sent"])
 
+        connected = True
+        while connected:
+            try:
+                message = receive_message(self, connection)
+                if message == self.commands["disconnect"]:
+                    connected = False
+                self.send_to_all_clients(connection, message)
+            except:
+                connected = False
+
+        self.close_connection(connection)
 
     def receive_message(self, connection):
         while True:
@@ -95,8 +106,22 @@ class Server():
             timestamp = self.timestamp()
             print("{} ".format(timestamp) + self.colors["red"] + "[ERROR]" + self.colors["end"])
 
+    def send_to_all_clients(self, connection, message):
+        timestamp = self.timestamp(formatted=False)
+        self.messages["username"].append((timestamp, message))
+        timestamp = self.timestamp(formatted=True)
+        user_message = "{} {} > {}".format(timestamp, clients[connection]["username"], message)
+        print(user_message)
 
+        for conn in clients:
+            if conn != connection:
+                self.send_message(conn, user_message)
 
+    def close_connection(self, connection):
+        timestamp = self.timestamp()
+        print("{} [DISCONNECTION] {} disconnected.".format(timestamp, self.clients[connection]["username"]))
+        del self.clients[connection]
+        connection.close()
 
 
 if __name__ == "__main__":
