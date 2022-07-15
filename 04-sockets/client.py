@@ -100,6 +100,6 @@ class Client():
         sys.exit(1)
 
 if __name__ == "__main__":
-    host = "127.0.1.1"
-    port = 1234
+    host = "0.0.0.0"
+    port = 6000
     client = Client(host, port)

@@ -141,7 +141,7 @@ class Server():
 
 if __name__ == "__main__":
     # listen on all IPv4 interfaces 
-    host = "127.0.1.1"
+    host = "0.0.0.0"
     # port to listen on (non-privileged ports are > 1023)
-    port = 1234
+    port = 6000
     server = Server(host, port) 
