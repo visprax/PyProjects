@@ -127,7 +127,6 @@ class Server():
             self.messages[username] = [(unformatted_timestamp, message)]
 
         user_message = f"{timestamp} {self.colors['yellow']+self.clients[connection]['username']+self.colors['end']}:> {message}"
-        # messages.append(user_message)
         print("{}".format(user_message))
         for client_socket in self.clients:
             if connection != client_socket:
