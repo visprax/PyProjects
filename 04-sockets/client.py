@@ -10,6 +10,7 @@ from threading import Thread
 class Client():
     def __init__(self, ip, port):
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.server_address = (ip, port)
         self.socket.connect(self.server_address)
 
@@ -37,8 +38,10 @@ class Client():
         handshake_message = self.receive_message()
         print(handshake_message)
         num_past_messages = self.receive_message()
-        for _ in range(int(num_past_messages)):
-            print(self.receive_message())
+        print(num_past_messages)
+        if num_past_messages:
+            for _ in range(int(num_past_messages)):
+                print(self.receive_message())
 
         # start receiving current messages
         thread = Thread(target=self.receive_realtime_messages)
@@ -46,7 +49,6 @@ class Client():
         thread.daemon = True
         thread.start()
 
-        # start sending messages
         self.start_messaging()
 
     def timestamp(self, formatted=True):
@@ -58,9 +60,10 @@ class Client():
             return now
 
     def send_message(self, message):
-        message_length = "{}".format(len(message))
+        message_length = f"{len(message):<{self.header_length}}"
         self.socket.send(bytes(message_length, self.format))
         self.socket.send(bytes(message, self.format))
+
 
     def receive_message(self):
         while True:
@@ -83,7 +86,9 @@ class Client():
                 self.send_message(message)
                 if message == self.commands["disconnect"]:
                     connected = False
-            except:
+            except Exception as err:
+                timestamp = self.timestamp()
+                print("{} ".format(timestamp) + self.colors["red"] + "[ERROR]" + self.colors["end"], err)
                 connected = False
 
         self.close_connection()
@@ -94,9 +99,7 @@ class Client():
         self.socket.close()
         sys.exit(1)
 
-
-
 if __name__ == "__main__":
-    host = "0.0.0.0"
-    port = 6000
+    host = "127.0.1.1"
+    port = 1234
     client = Client(host, port)
