@@ -1,4 +1,4 @@
-#!/usr/bin/env ptyhon3
+#!/usr/bin/env python3
 
 """Solve 1 dimentional wave equation in parallel using MPI.
 
@@ -54,14 +54,95 @@ We use MPI in order to accelerate the computation. We use domain decomposition,
 which assuming P MPI processes, divides the original interval into P subintervals, 
 and each process does the computation on the interval associated with its subinterval.
 However to compute the estimated solution, u(x, t+dt), at the next time step, we require 
-information about u(x-dx, t) and u(x+dx, t). When process ID tries to make these estimates, 
-it will need one value from process ID-1, and one value from process ID+1, before it can make 
+information about u(x-dx, t) and u(x+dx, t). When process rank tries to make these estimates, 
+it will need one value from process rank-1, and one value from process rank+1, before it can make 
 all the updates. MPI will handle the communication between these processes.
 To print a table of solution, we want each process to send its final result to the master process
-(with ID=0), once all the data has been collected, the master process prints it.
+(with rank=0), once all the data has been collected, the master process prints it.
 
 Resources:
     - Solving Wave Equation:      https://people.math.sc.edu/Burkardt/c_src/wave_mpi/wave_mpi.html
     - Finite Difference Method:   https://pythonnumericalmethods.berkeley.edu/notebooks/chapter23.03-Finite-Difference-Method.html
     - Central Difference Formula: http://home.cc.umanitoba.ca/~farhadi/Math2120/Numerical%20Differentiation.pdf
 """
+
+import sys
+import time
+import logging
+import argparse
+import numpy as np
+from mpi4py import MPI
+
+def parse_arguments(comm):
+    """Parse arguments.
+
+    Parameters:
+        comm (MPI communication object): MPI communication object, usually MPI.COMM_WORLD
+
+    Returns:
+        args (Namespace): argparse arguments namespace.
+    """
+    parser = argparse.ArgumentParser(description="Solve 1D Wave Equation.")
+    parser.add_argument("dt", nargs='?', default=0.00125, type=float, help="time step size")
+    parser.add_argument("npoints", nargs='?', default=401, type=float, help="total number of points")
+    parser.add_argument("nsteps", nargs='?', default=4000, type=float, help="total number of steps")
+
+    try:
+        if comm.Get_rank() == 0:
+            args = parser.parse_args()
+        else:
+            args = None
+    except:
+        args = None
+        logging.critical("Error in parsing arguments.")
+        sys.exit(1)
+    finally:
+        args = comm.bcast(args, root=0)
+
+    return args
+
+def solve_wave_equation():
+    """Solve the wave equation in parallel using MPI.
+
+    Descritize the wave equation for u(x, t):
+        d^2u/dt^2 -c^2 * d^2u/dx^2 = 0  for 0 < x < 1 and t > 0
+    with boundary conditions:
+        u(0, t) = u0(t) = sin(2*pi*(0 - c*t))
+        u(1, t) = u1(t) = sin(2*pi*(1 - c*t))
+    and initial conditions:
+        u(x, 0)     = g(x, t=0) = sin(2*pi*x)
+        du(x, 0)/dt = h(x, t=0) = 2*pi*c*cos(2*pi*x)
+    by setting alpha = c*dt/dx, we have:
+        u(x, t+dt) = 2u(x, t) - u(x, t-dt)
+                   + alpha^2 * (u(x-dx, t) - 2u(x, t) + u(x+dx, t))
+    """
+    comm = MPI.COMM_WORLD
+    rank = comm.Get_rank()
+    nproc = comm.Get_size()
+
+    logging.basicConfig(format='%(asctime)s  %(name)s  %(levelname)s: %(message)s', level=logging.INFO)
+
+    args = parse_arguments(comm)
+    if args == None:
+        if rank == 0:
+            logging.critical("Error in parsing arguments.")
+            sys.exit(1)
+    else:
+        # time step size
+        dt = args.dt
+        # total number of points
+        npoints = args.npoints
+        # number of steps used to get solution at time t from t=0
+        nsteps = args.nsteps
+
+    if rank == 0:
+        logging.info("Estimating a numerical solution of the wave equation using MPI.")
+        logging.info("{} processes used.".format(nproc))
+        logging.info("{} points are used.".format(npoints))
+        logging.info("{} time steps of size {} used.".format(nsteps, dt))
+        logging.info("solution computed at time {}".format(nsteps*dt))
+
+
+if __name__ == "__main__":
+    solve_wave_equation()
+
