@@ -101,14 +101,14 @@ def parse_arguments(comm):
 
     return args
 
-def evolve(rank, nproc, npoints, npoints_local, nsteps, dt):
+def dynamic(comm, rank, nproc, npoints, local_npoints, nsteps, dt):
     """Advance the local solution for a given number of steps.
 
     Parameters:
         rank (int): The rank of the caller processor.
         nproc (int): Total number of processors.
         npoints (int): Total number of points.
-        npoints_local (int): Total number of points for the caller processor.
+        local_npoints (int): Total number of points for the caller processor.
         nsteps (int): Total number of steps.
         dt (float): Time step size.
 
@@ -131,8 +131,8 @@ def evolve(rank, nproc, npoints, npoints_local, nsteps, dt):
             logging.error("Computation will not be stable!")
         sys.exit(1)
 
-    global_idx_start = (rank * (npoints-1)) / p
-    global_idx_end = ((rank+1) * (npoints-1)) / p
+    global_idx_start = int((rank * (npoints-1)) / nproc)
+    global_idx_end = int(((rank+1) * (npoints-1)) / nproc)
     if rank > 0:
         global_idx_start -= 1
 
@@ -148,7 +148,7 @@ def evolve(rank, nproc, npoints, npoints_local, nsteps, dt):
     for global_idx in range(global_idx_start, global_idx_end+1):
         x = global_idx / (npoints-1)
         local_idx = global_idx - global_idx_start
-        u1_local[local_idx] = exact(x, t)
+        u1_local[local_idx] = exact_solution(x, t)
 
     for local_idx in range(local_idx_start, local_idx_end+1):
         u0_local[local_idx] = u1_local[local_idx]
@@ -160,17 +160,16 @@ def evolve(rank, nproc, npoints, npoints_local, nsteps, dt):
             for local_idx in range(local_idx_start+1, local_idx_end):
                 global_idx = global_idx_start + local_idx
                 x = global_idx / (npoints-1)
-                u2_local[local_idx] = u1_local[local_idx-1] * (0.5 * alpha^2)
-                                    + u1_local[local_idx+1] * (0.5 * alpha^2)
-                                    + u1_local[local_idx] * (1.0 - alpha^2)
+                u2_local[local_idx] = u1_local[local_idx-1] * (0.5 * alpha**2) \
+                                    + u1_local[local_idx+1] * (0.5 * alpha**2) \
+                                    + u1_local[local_idx] * (1.0 - alpha**2) \
                                     + dt * dudt(x, t)
         # after first time step, use the two previous solutions
         else:
             for local_idx in range(local_idx_start+1, local_idx_end):
-                u2_local[local_idx] = u1_local[local_idx-1] * (alpha^2)
-                                    + u1_local[local_idx+1] * (alpha^2)
-                                    + u1_local[local_idx] * 2.0 * (1.0 - alpha^2)
-
+                u2_local[local_idx] = u1_local[local_idx-1] * (alpha**2) \
+                                    + u1_local[local_idx+1] * (alpha**2) \
+                                    + u1_local[local_idx] * 2.0 * (1.0 - alpha**2)
 
     # exchange the local boundary values with the left processor
     rtol_tag = 21
@@ -180,15 +179,15 @@ def evolve(rank, nproc, npoints, npoints_local, nsteps, dt):
         u2_local[local_idx_start] = comm.recv(source=rank-1, tag=ltor_tag)
     else:
         x = 0.0
-        u2_local[local_idx_start] = exact(x, t)
+        u2_local[local_idx_start] = exact_solution(x, t)
 
-    # exchange the local boundary values with the left processor
+    # exchange the local boundary values with the right processor
     if rank < nproc-1:
         comm.send(u2_local[local_idx_end-1], dest=rank+1, tag=ltor_tag)
         u2_local[local_idx_end] = comm.recv(source=rank+1, tag=rtol_tag)
     else:
         x = 0.0
-        u2_local[local_idx_end] = exact(x, t)
+        u2_local[local_idx_end] = exact_solution(x, t)
 
     # replace next time step values
     for local_idx in range(local_idx_start, local_idx_end+1):
@@ -198,6 +197,68 @@ def evolve(rank, nproc, npoints, npoints_local, nsteps, dt):
     return u1_local
 
 
+def collect(comm, rank, nproc, npoints, local_npoints, nsteps, dt, u_local):
+    """Send results from worker processes to root for printing."""
+    global_idx_start = int((rank * (npoints-1)) / nproc)
+    global_idx_end = int(((rank+1) * (npoints-1)) / nproc)
+    if rank > 0:
+        global_idx_start -= 1
+    
+    local_idx_start = 0
+    local_idx_end = global_idx_end - global_idx_start
+
+    buf = np.zeros(2, dtype=int)
+    message1_tag = 10
+    message2_tag = 20
+    # root collects worker results into u_global array
+    if rank == 0:
+        u_global = np.zeros(npoints)
+        for local_idx in range(local_idx_start, local_idx_end+1):
+            global_idx = global_idx_start + local_idx - local_idx_start
+            u_global[global_idx] = u_local[local_idx]
+        
+        for proc in range(1, nproc):
+            # receive message1 (global index and number of values)
+            buf = comm.recv(source=proc, tag=message1_tag)
+            global_idx_start = buf[0]
+            local_npoints_check = buf[1]
+            
+            if global_idx_start < 0:
+                logging.critical("Consistency Error. Illegal global_idx_start value: {}".format(global_idx_start))
+                sys.exit(1)
+            elif npoints <= global_idx_start + local_npoints_check - 1:
+                logging.critical("Consistency Error. Illegal global_idx_start+local_npoints_check: {}".format(global_idx_start+local_npoints_check))
+                sys.exit(1)
+
+            # receive message2 (values)
+            u_global[global_idx_start:global_idx_start+local_npoints_check] = comm.recv(source=proc, tag=message2_tag)
+
+        t = nsteps * dt
+        logging.info("  index       x       f(x)        exact_solution")
+        for global_idx in range(0, npoints):
+            x = global_idx / (npoints-1)
+            logging.info("  {:.4f}      {:.4f}      {:.4f}      {:.4f}".format(global_idx, x, u_global[global_idx], exact_solution(x, t)))
+    
+    # have workers send results to root
+    else:
+        buf[0] = global_idx_start
+        buf[1] = local_npoints
+        comm.send(buf, dest=0, tag=message1_tag)
+
+        comm.send(u_local, dest=0, tag=message2_tag)
+
+
+def exact_solution(x, t):
+    """Evaluate the exact, theoretical solution."""
+    c = 1.0
+    uxt = np.sin(2.0 * np.pi * (x - c*t))
+    return uxt
+
+def dudt(x, t):
+    """Evaluate the first order partial derivative of u(x, t), du(x, t)/dt"""
+    c = 1.0
+    dudt = -2.0 * np.pi * c * np.cos(2.0 * np.pi * (x - c*t))
+    return dudt
 
 
 def solve_wave_equation():
@@ -244,23 +305,23 @@ def solve_wave_equation():
     start_time = MPI.Wtime()
 
     # determine local points
-    global_idx_start = (rank * (npoints-1)) / p
-    global_idx_end = ((rank+1) * (npoints-1)) / p
+    global_idx_start = int((rank * (npoints-1)) / nproc)
+    global_idx_end = int(((rank+1) * (npoints-1)) / nproc)
     if rank > 0:
-        globa_idx_start -= 1
+        global_idx_start -= 1
     local_npoints = global_idx_end - global_idx_start + 1
     
     # update local values
-    u1_local = evolve(rank, nproc, npoints, local_npoints, nsteps, dt)
+    u1_local = dynamic(comm, rank, nproc, npoints, local_npoints, nsteps, dt)
 
     # collect local values into global values
-    collect(rank, nproc, npoints, local_npoints, nsteps, dt, u1_local)
+    collect(comm, rank, nproc, npoints, local_npoints, nsteps, dt, u1_local)
 
     end_time = MPI.Wtime()
     wall_time = end_time - start_time
 
     if rank == 0:
-        logging.info("Elapased wall clock time: {}s".format(wall_time))
+        logging.info("Elapsed wall clock time: {}s".format(wall_time))
 
 
 
