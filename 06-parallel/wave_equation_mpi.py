@@ -101,6 +101,30 @@ def parse_arguments(comm):
 
     return args
 
+def update(rank, nproc, npoints, npoints_local, nsteps, dt):
+    """Advance the local solution for a given number of steps.
+
+    Parameters:
+        rank (int): The rank of the caller processor.
+        nproc (int): Total number of processors.
+        npoints (int): Total number of points.
+        npoints_local (int): Total number of points for the caller processor.
+        nsteps (int): Total number of steps.
+        dt (float): Time step size.
+
+    Returns:
+        solution (numpy array): Solution of the wave equation at the last time step, 
+            as calculated by the caller processor.
+    """
+    # wave propagation speed
+    c = 1.0
+    dx = 1.0 / (npoints-1)
+    alpha = c * dt/dx
+
+
+
+
+
 def solve_wave_equation():
     """Solve the wave equation in parallel using MPI.
 
@@ -141,6 +165,28 @@ def solve_wave_equation():
         logging.info("{} points are used.".format(npoints))
         logging.info("{} time steps of size {} used.".format(nsteps, dt))
         logging.info("solution computed at time {}".format(nsteps*dt))
+
+    start_time = MPI.Wtime()
+
+    # determine local points
+    i_points_low = (rank * (npoints-1)) / p
+    i_points_high = ((rank+1) * (npoints-1)) / p
+    if rank > 0:
+        i_points_low -= 1
+    npoints_local = i_points_high - i_points_low + 1
+    
+    # update local values
+    u1_local = update(rank, nproc, npoints, npoints_local, nsteps, dt)
+
+    # collect local values into global values
+    collect(rank, nproc, npoints, npoints_local, nsteps, dt, u1_local)
+
+    end_time = MPI.Wtime()
+    wall_time = end_time - start_time
+
+    if rank == 0:
+        logging.info("Elapased wall clock time: {}s".format(wall_time))
+
 
 
 if __name__ == "__main__":
