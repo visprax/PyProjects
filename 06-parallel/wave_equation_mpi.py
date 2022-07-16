@@ -101,7 +101,7 @@ def parse_arguments(comm):
 
     return args
 
-def update(rank, nproc, npoints, npoints_local, nsteps, dt):
+def evolve(rank, nproc, npoints, npoints_local, nsteps, dt):
     """Advance the local solution for a given number of steps.
 
     Parameters:
@@ -113,7 +113,7 @@ def update(rank, nproc, npoints, npoints_local, nsteps, dt):
         dt (float): Time step size.
 
     Returns:
-        solution (numpy array): Solution of the wave equation at the last time step, 
+        u1_local (numpy.array): Solution of the wave equation at the last time step, 
             as calculated by the caller processor.
     """
     # wave propagation speed
@@ -121,6 +121,81 @@ def update(rank, nproc, npoints, npoints_local, nsteps, dt):
     dx = 1.0 / (npoints-1)
     alpha = c * dt/dx
 
+    if np.abs(alpha) >= 1.0:
+        if rank == 0:
+            logging.error("alpha >= 1 (alpha = c*dt/dx)")
+            logging.debug("c = {}".format(c))
+            logging.debug("dt = {}".format(dt))
+            logging.debug("dx = {}".format(dx))
+            logging.debug("alpha = {}".format(alpha))
+            logging.error("Computation will not be stable!")
+        sys.exit(1)
+
+    global_idx_start = (rank * (npoints-1)) / p
+    global_idx_end = ((rank+1) * (npoints-1)) / p
+    if rank > 0:
+        global_idx_start -= 1
+
+    local_idx_start = 0
+    local_idx_end = global_idx_end  - global_idx_start
+
+    u0_local = np.zeros(local_npoints)
+    u1_local = np.zeros(local_npoints)
+    u2_local = np.zeros(local_npoints)
+
+    t = 0.0
+
+    for global_idx in range(global_idx_start, global_idx_end+1):
+        x = global_idx / (npoints-1)
+        local_idx = global_idx - global_idx_start
+        u1_local[local_idx] = exact(x, t)
+
+    for local_idx in range(local_idx_start, local_idx_end+1):
+        u0_local[local_idx] = u1_local[local_idx]
+
+    for step in range(1, nsteps+1):
+        t = step * dt
+        # use initial derivative information for the first step
+        if step == 1:
+            for local_idx in range(local_idx_start+1, local_idx_end):
+                global_idx = global_idx_start + local_idx
+                x = global_idx / (npoints-1)
+                u2_local[local_idx] = u1_local[local_idx-1] * (0.5 * alpha^2)
+                                    + u1_local[local_idx+1] * (0.5 * alpha^2)
+                                    + u1_local[local_idx] * (1.0 - alpha^2)
+                                    + dt * dudt(x, t)
+        # after first time step, use the two previous solutions
+        else:
+            for local_idx in range(local_idx_start+1, local_idx_end):
+                u2_local[local_idx] = u1_local[local_idx-1] * (alpha^2)
+                                    + u1_local[local_idx+1] * (alpha^2)
+                                    + u1_local[local_idx] * 2.0 * (1.0 - alpha^2)
+
+
+    # exchange the local boundary values with the left processor
+    rtol_tag = 21
+    ltor_tag = 12
+    if rank > 0:
+        comm.send(u2_local[local_idx_start+1], dest=rank-1, tag=rtol_tag)
+        u2_local[local_idx_start] = comm.recv(source=rank-1, tag=ltor_tag)
+    else:
+        x = 0.0
+        u2_local[local_idx_start] = exact(x, t)
+
+    # exchange the local boundary values with the left processor
+    if rank < nproc-1:
+        comm.send(u2_local[local_idx_end-1], dest=rank+1, tag=ltor_tag)
+        u2_local[local_idx_end] = comm.recv(source=rank+1, tag=rtol_tag)
+    else:
+        x = 0.0
+        u2_local[local_idx_end] = exact(x, t)
+
+    # replace next time step values
+    for local_idx in range(local_idx_start, local_idx_end+1):
+        u0_local[local_idx] = u1_local[local_idx]
+        u1_local[local_idx] = u2_local[local_idx]
+
+    return u1_local
 
 
 
@@ -169,17 +244,17 @@ def solve_wave_equation():
     start_time = MPI.Wtime()
 
     # determine local points
-    i_points_low = (rank * (npoints-1)) / p
-    i_points_high = ((rank+1) * (npoints-1)) / p
+    global_idx_start = (rank * (npoints-1)) / p
+    global_idx_end = ((rank+1) * (npoints-1)) / p
     if rank > 0:
-        i_points_low -= 1
-    npoints_local = i_points_high - i_points_low + 1
+        globa_idx_start -= 1
+    local_npoints = global_idx_end - global_idx_start + 1
     
     # update local values
-    u1_local = update(rank, nproc, npoints, npoints_local, nsteps, dt)
+    u1_local = evolve(rank, nproc, npoints, local_npoints, nsteps, dt)
 
     # collect local values into global values
-    collect(rank, nproc, npoints, npoints_local, nsteps, dt, u1_local)
+    collect(rank, nproc, npoints, local_npoints, nsteps, dt, u1_local)
 
     end_time = MPI.Wtime()
     wall_time = end_time - start_time
