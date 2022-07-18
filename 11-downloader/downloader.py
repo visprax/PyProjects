@@ -9,6 +9,7 @@ import os
 import sys
 import math
 import urllib
+import time
 from queue import Queue
 # history
 # progress bar
@@ -69,24 +70,22 @@ for i in range(0, 4):
 class UrlParser:
     """Connect to the url server and retrieve header information."""
     def __init__(self, url):
-        self._url  = url
+        self.url  = url
         self._header = self.header()
-        self._filesize = self.filesize
-        self._filename = self.filename
-        self._resumable = self.supports_bytesrange()
-        self._checksum_type, self._checksum = self.contains_checksum()
+        self.filesize = self.filesize()
+        self.filename = self.filename()
+        self.resumable = self.supports_bytesrange()
+        self.checksum_type, self.checksum = self.contains_checksum()
 
     def header(self):
         try:
-            header = requests.head(self._url).headers
+            header = requests.head(self.url).headers
         except Exception as err:
             logging.critical("Error: {} occured during requesting the header information.".format(err))
             header = None
         finally:
             return header
     
-    # for convenience we make filesize and filename property methods
-    @property
     def filesize(self):
         if "Content-Length" in self._header.keys():
             filesize = int(self._header["Content-Length"])
@@ -94,8 +93,7 @@ class UrlParser:
             loggin.debug("No 'Content-Length' in header response.")
             filesize = None
         return filesize
-
-    @property
+   
     def filename(self):
         if "Content-Disposition" in self._header.keys():
             content_disposition = self._header["Content-Disposition"]
@@ -103,7 +101,7 @@ class UrlParser:
             return filename
         else:
             logging.debug("No 'Content-Disposition' in header response.")
-            basename = os.path.basename(self._url)
+            basename = os.path.basename(self.url)
             # filename in url could be url-encoded, so we decode it
             # if it's not decoded, this decoding will return the same basename
             filename = urllib.parse.unquote_plus(basename)
@@ -151,13 +149,16 @@ class UrlParser:
         return checksum_type, checksum
 
 
-
-
 class Downloader(UrlParser):
     def __init__(self, url, num_threads=4, **kwargs):
         super().__init__(url, **kwargs)
         self._num_threads = num_threads
-        self.threads_bytes_range = self.threads_bytes_range()
+        # [(0, 9), (10, 19), (20, 28)]
+        self._byte_ranges = self.threads_byte_ranges()
+        # Queue({"chunk_id": 0, "chunk_range": (0, 10), "interrupted": False}, ...)
+        self.dlqueue = self.dlqueue()
+        self.start_time = None
+        
     
     @property
     def num_threads(self):
@@ -175,10 +176,10 @@ class Downloader(UrlParser):
     def num_threads(self):
         raise AttributeError("num_threads can't be deleted. Set to 1 to use only one thread.")
 
-    def threads_bytes_range(self):
+    def threads_byte_ranges(self):
         """Bytes range specific to a thread which will be downloaded by that thread."""
         thread_ranges = []
-        range_start = 0
+        chunk_start = 0
         chunk_size = math.ceil(self.filesize / self.num_threads)
         if chunk_size == 1:
             logging.warning("Filesize {}, too short for {} threads. Using 1 thread.".format(self.filesize, self.num_threads))
@@ -194,9 +195,25 @@ class Downloader(UrlParser):
 
         return thread_ranges
 
+    def dlqueue(self):
+        """Queue the chunks for threads to pick from."""
+        # {"0": {"range": (0, 10), "interrupted": False}, }
+        dlqueue = Queue(maxsize=0)
+        for chunk_id, chunk_range in enumerate(self._byte_ranges):
+            item = {"chunk_id": chunk_id, "chunk_range": chunk_range, "interrupted": False}
+            dlqueue.put(item)
 
+    def timestamp(self):
+        now = time.strftime("%Y-%m-%d %H:%M:%S")
+        return now
 
     def download(self):
+        self.start_time = self.timestamp()
+        if self.resumable:
+            logging.debug("Starting download in a resumable mode.")
+
+
+
 
 
 
@@ -205,11 +222,14 @@ if __name__ == "__main__":
     logging.basicConfig(format='%(asctime)s  %(name)s  %(levelname)s: %(message)s', level=logging.DEBUG)
 
     # urlparser = UrlParser(url)
-    # print(urlparser._filesize)
-    # print(urlparser._filename)
-    # print(urlparser._resumable)
-    # print(urlparser._checksum_type, urlparser._checksum)
+    # print(urlparser.filesize)
+    # print(urlparser.filename)
+    # print(urlparser.resumable)
+    # print(urlparser.checksum_type, urlparser.checksum)
 
     xdl = Downloader(url)
     print(xdl.filesize)
     print(xdl.filename)
+    xdl.download()
+    print(xdl.start_time)
+
