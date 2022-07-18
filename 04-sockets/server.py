@@ -7,7 +7,7 @@ import time
 import socket
 import threading
 
-class Server():
+class Server:
     def __init__(self, ip, port):
         # parameters passed to socket() are constants. 
         # AF_INET is the internet family address for IPv4

@@ -7,7 +7,7 @@ import time
 import socket
 from threading import Thread
 
-class Client():
+class Client:
     def __init__(self, ip, port):
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
