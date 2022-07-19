@@ -12,6 +12,8 @@ import time
 from queue import Queue
 from threading import Thread
 import shutil
+import hashlib
+import zlib
 # history
 # progress bar
 # download speed chart
@@ -243,6 +245,67 @@ class Downloader(UrlParser):
 
         logging.debug("Merging file chunks into single file.")
 
+        with open(self.filepath, "ab") as f:
+            for tid in range(self.num_threads):
+                chunk_path = os.path.join(self.dldir, self._chunk_filename+str(tid))
+                with open(chunk_path) as chunk_file:
+                    block = self.lazy_read(chunk_file)
+                     f.write(block)
+
+        if self.checksum_type and self.checksum:
+            self.check_integrity(self.checksum_type, self.checksum)
+
+
+    def check_integrity(self, checksum_type, checksum):
+        """Check the integrity of downloaded file."""
+        if checksum_type == "MD5":
+            checksum_md5 = self.get_md5()
+            if checksum == checksum_md5:
+                logging.debug("MD5 checksum integrity test FAILED.")
+                return True
+            else:
+                logging.debug("MD5 checksum integrity test FAILED.")
+                return False
+        elif checksum_type == "CRC32C":
+            checksum_crc = self.get_crc32()
+            if checksum == checksum_crc:
+                logging.debug("CRC32 checksum integrity test PASSED.")
+                return True
+            else:
+                logging.debug("CRC32 checkum integrity test FAILED.")
+                return False
+        elif checksum_type == "CRC32C,MD5":
+            header_checksum_crc, header_checksum_md5 = checksum
+            file_checksum_crc = self.get_crc32()
+            file_checksum_md5 = self.get_md5()
+            if (header_checksum_crc==file_checksum_crc) and (header_checksum_md5==file_checksum_md5):
+                logging.debug("CRC32 and MD5 checksum integrity test PASSED.")
+                return True
+            else:
+                logging.debug("CRC32 and MD5 checksum integrity test FAILED.")
+                return False
+            
+
+
+
+    def get_md5(self):
+        with open(self.filepath, "rb") as f:
+            md5 = hashlib.md5(f.read()).hexdigest
+            base64_md5 = base64.b64encode(digest)
+        return base64_md5
+
+    def get_crc32(self):
+        chunk_size = 1024**2
+        with open(self.filepath, "rb") as f:
+            thehash = 0
+            while True:
+                chunk = f.read(chunk_size)
+                if not chunk:
+                    break
+                thehash = zlib.crc32(chunk, thehash)
+        crc = "%08X" % (thehash & 0xFFFFFFFF)
+        bas64_crc = base64.b64encode(crc)
+        return base64_crc
     
     def log_dlstat(self):
         while not self.isfinished():
@@ -259,14 +322,14 @@ class Downloader(UrlParser):
         """Get download percentage for each thread."""
         # [(1, 98), (2, 65), ...]
         dlstat = []
-        for thread_idx in range(self.num_threads):
-            chunk_path = os.path.join(self.dldir, self._chunk_filename+str(thread_idx))
+        for tid in range(self.num_threads):
+            chunk_path = os.path.join(self.dldir, self._chunk_filename+str(tid))
             if os.path.isfile(chunk_path):
                 chunk_dlsize = os.stat(chunk_path).st_size
                 chunk_dlperc = round((chunk_dlsize / (self.filesize/self.num_threads)) * 100, 2)
-                dlstat.append((thread_idx, chunk_dlperc))
+                dlstat.append((tid, chunk_dlperc))
             else:
-                dlstat.append((thread_idx, 0.00))
+                dlstat.append((tid, 0.00))
         return dlstat
 
     def isfinished(self):
@@ -278,11 +341,13 @@ class Downloader(UrlParser):
         else:
             return False
 
-
-
-
-
-
+    def lazy_read(self, fileobj, block_size=1024**2):
+        """Generator to read a (big) file in blocks."""
+        while True:
+            data = fileoj.read(block_size)
+            if not data:
+                break
+            yield data
 
 
 if __name__ == "__main__":
