@@ -1,19 +1,21 @@
 #!/usr/bin/env python3
 
-import requests
-import logging
-from pathlib import Path
 import re
 import os
 import sys
 import math
-import urllib
 import time
+import zlib
+import shutil
+import urllib
+import hashlib
+import logging
+import argparse
+import requests
 from queue import Queue
 from threading import Thread
-import shutil
-import hashlib
-import zlib
+
+
 # history
 # progress bar
 # download speed chart
@@ -38,11 +40,11 @@ class UrlParser:
     def header(self):
         try:
             header = requests.head(self.url).headers
-        except Exception as err:
-            logging.critical("Error: {} occured during requesting the header information.".format(err))
-            header = None
-        finally:
             return header
+        except Exception as err:
+            logging.critical("Error occured during requesting the header information: {}".format(err))
+            header = None
+            raise SystemExit("Error, couldn't connect to server: {}".format(err))
     
     def filesize(self):
         if "Content-Length" in self._header.keys():
@@ -129,7 +131,7 @@ class Downloader(UrlParser):
         # {"1": 100, ...}
         self._threads_dltime = {}
 
-        logging.debug("File Name: {}, File Size: {} MiB, Resumable: {}, Checksum: {}, Number of Threads: {}" \
+        logging.info("\nFile Name: {} \nFile Size: {:.2f} MiB \nResumable: {} \nChecksum: {} \nNumber of Threads: {}" \
                 .format(self.filename, self.filesize/(1024**2), self.resumable, self.checksum_type, self.num_threads))
     
     @property
@@ -139,9 +141,9 @@ class Downloader(UrlParser):
     @num_threads.setter
     def num_threads(self, num_threads):
         if num_threads <= 0:
-            raise ValueError("Number of threads should be a positive integer.")
+            raise SystemExit("Number of threads should be a positive integer.")
         if not isinstance(num_threads, int):
-            raise TypeError("Number of threads should be of type integer.")
+            raise SystemExit("Number of threads should be of type integer.")
         self._num_threads = num_threads
     
     @num_threads.deleter
@@ -156,9 +158,9 @@ class Downloader(UrlParser):
     def dldir(self, dldir):
         disk_total_size, disk_used_size, disk_available_size = shutil.disk_usage(dldir)
         if disk_available_size < self.filesize:
-            raise ValueError("Provided download directory doesn't have enough storage space.")
+            raise SystemExit("Provided download directory doesn't have enough storage space.")
         elif not os.path.isdir(dldir):
-            raise FileNotFoundError("The download directory doesn't exists.")
+            raise SystemExit("The download directory doesn't exists.")
         else:
             self._dldir = dldir
 
@@ -231,7 +233,7 @@ class Downloader(UrlParser):
         self.end_time = self.timestamp()
         end_sec = time.perf_counter()
         self._dltime = end_sec - start_sec
-        log.info("Total download time: {}".format(round(self._dltime, 2)))
+        logging.info("Total download time: {}".format(round(self._dltime, 2)))
         if self.resumable:
             for tid in range(self.num_threads):
                 thread_avgspeed = (self.filesize/self.num_threads) / self._threads_dltime[str(tid)]
@@ -382,15 +384,24 @@ if __name__ == "__main__":
     
     logging.basicConfig(format='%(asctime)s  %(name)s  %(levelname)s: %(message)s', level=logging.DEBUG)
 
-    # urlparser = UrlParser(url)
-    # print(urlparser.filesize)
-    # print(urlparser.filename)
-    # print(urlparser.resumable)
-    # print(urlparser.checksum_type, urlparser.checksum)
+    argparser = argparse.ArgumentParser()
+    argparser.add_argument("url", help="The url of the file.")
+    argparser.add_argument("-d", "--dldir", help="The download directory. Defualt is CWD.")
+    argparser.add_argument("-t", "--nthrd", type=int, help="Number of threads. Default is 4.")
+    argparser.add_argument("--debug", action="store_true", help="Turn on debug mode.")
+    args = argparser.parse_args()
+
+    # if args.nthrd and args.dldir:
+        # xdl = Downloader(args.url, num_threads=args.nthrd, dldir=args.dldir)
+    # elif args.nthrd and not args.dldir:
+        # xdl = Downloader(args.url, num_threads=args.nthrd)
+    # elif not args.nthrd and args.dldir:
+        # xdl = Downloader(args.url, dldir=args.dldir)
+    # else:
+        # xdl = Downloader(args.url)
 
     xdl = Downloader(url)
-    print(xdl.filesize)
-    print(xdl.filename)
     xdl.download()
+
     print(xdl.start_time)
 
