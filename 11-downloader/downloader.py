@@ -24,51 +24,6 @@ import zlib
 
 url="http://dls4.top-movies2filmha.tk/DonyayeSerial/series/The.Expanse/S01/480p/The.Expanse.S01E01.480p.x264.mkv"
 
-"""
-def download_file(url, resume_byte_pos):
-    local_filename = url.split('/')[-1]
-    # NOTE the stream=True parameter below
-    
-    resume_header = ({'Range': f'bytes={resume_byte_pos}-'} if resume_byte_pos else None)
-    initial_pos = resume_byte_pos if resume_byte_pos else 0
-
-    print("Active threads: {}".format(threading.active_count()))
-
-    with requests.get(url, stream=True, verify=False, allow_redirects=True, headers=resume_header) as r:
-        r.raise_for_status()
-        if "Content-Disposition" in r.headers.keys():
-            filename = r.headers["Content-Disposition"]
-        if "Content-Length" in r.headers.keys():
-            filesize = int(r.headers["Content-Length"])
-
-        with open(local_filename, 'ab') as f:
-            chunk_size=8192
-            for chunk in r.iter_content(chunk_size=chunk_size): 
-                # If you have chunk encoded response uncomment if
-                # and set chunk_size parameter to None.
-                #if chunk: 
-                f.write(chunk)
-            # shutil.copyfileobj(r.raw, f, length=chunk_size)
-    return local_filename
-
-
-
-
-
-def create_download_threads(url, resume_byte_pos):
-    download_thread = threading.Thread(target=download_file, args=(url, resume_byte_pos))
-    download_thread.start()
-
-
-download_dir = Path(".")
-file = download_dir / url.split('/')[-1]
-file_size_offline = file.stat().st_size
-r = requests.head(url)
-file_size_online = int(r.headers.get('content-length', 0))
-
-for i in range(0, 4):
-    create_download_threads(url, file_size_offline)
-"""
 
 class UrlParser:
     """Connect to the url server and retrieve header information."""
@@ -162,9 +117,20 @@ class Downloader(UrlParser):
         self._byte_ranges = self.get_byte_ranges()
         # Queue({"chunk_id": 0, "chunk_range": (0, 10), "interrupted": False}, ...)
         self.dlqueue = self.get_dlqueue()
+        # start and end time stamp of download
         self.start_time = None
+        self.end_time = None
         # filename pattern used for file chunks
         self._chunk_filename = self.filename + ".part"
+        # defualt write mode, could be 'wb' or 'ab'
+        self._write_mode = "wb"
+        # total download time in seconds
+        self._dltime = None
+        # {"1": 100, ...}
+        self._threads_dltime = {}
+
+        logging.debug("File Name: {}, File Size: {} MiB, Resumable: {}, Checksum: {}, Number of Threads: {}" \
+                .format(self.filename, self.filesize/(1024**2), self.resumable, self.checksum_type, self.num_threads))
     
     @property
     def num_threads(self):
@@ -231,20 +197,26 @@ class Downloader(UrlParser):
     def download(self):
         """Main driver function for starting downloader threads."""
         self.start_time = self.timestamp()
+        start_sec = time.perf_counter()
+
         if self.resumable:
-            logging.debug("Starting download in a resumable mode.")
+            logging.debug("Starting download in resumable mode.")
             for _ in range(self.num_threads):
                 thread = Thread(target=self.download_chunk)
                 thread.daemon = True
                 thread.start()
             logging.debug("Download threads have been started.")
+
+            self.log_dlstat()
+            # wait until all threads are done
+            self.dlqueue.join()
+        else:
+            logging.debug("Starting download in non-resumable mode.")
+            self.nonres_download()
+            self.log_dlstat()
        
-        self.log_dlstat()
-        # wait until all threads are done
-        self.dlqueue.join()
 
         logging.debug("Merging file chunks into single file.")
-
         with open(self.filepath, "ab") as f:
             for tid in range(self.num_threads):
                 chunk_path = os.path.join(self.dldir, self._chunk_filename+str(tid))
@@ -254,7 +226,67 @@ class Downloader(UrlParser):
 
         if self.checksum_type and self.checksum:
             self.check_integrity(self.checksum_type, self.checksum)
+        else:
+            logging.debug("Checksum not available. skipping integrity check.")
 
+        self.end_time = self.timestamp()
+        end_sec = time.perf_counter()
+        self._dltime = end_sec - start_sec
+        log.info("Total download time: {}".format(round(self._dltime, 2)))
+        if self.resumable:
+            for tid in range(self.num_threads):
+                thread_avgspeed = (self.filesize/self.num_threads) / self._threads_dltime[str(tid)]
+                thread_avgspeed /= 1024**2
+                logging.info("Thread: {}, Download Time: {} s, Average Speed: {} MiB/s".format(tid, self._threads_dltime[str(tid)],thread_avgspeed))
+
+
+    def download_chunk(self):
+        """Download each thread chunk."""
+        while True:
+            dljob = self.dlqueue.get()
+            try:
+                thread_dltime_start = time.perf_counter()
+                # update byte range and write mode, if download was interuppted
+                if dljob["interrupted"]:
+                    time.sleep(1)
+                    chunk_path = os.path.join(self.dldir, self._chunk_filename+str(dljob["chunk_id"]))
+                    if os.path.isfile(chunk_path):
+                        self._write_mode = "ab"
+                        orig_chunk_range = dljob["chunk_range"]
+                        dljob["chunk_range"] = (orig_chunk_range[0]+os.stat(chunk_path).st_size, orig_chunk_range[1])
+                    else:
+                        self._write_mode = "wb"
+
+               header = {"Range": "bytes={}".format(dljob["chunk_range"])}
+               with requests.get(self.url, stream=True, verify=False, allow_redirects=True, headers=header) as req:
+                   req.raise_for_status()
+                   chunk_path = os.path.join(self.dldir, self._chunk_filename+str(dljob["chunk_id"]))
+                   with open(chunk_path, self._write_mode) as dlf:
+                       chunk_size = 1024**2
+                       for chunk in req.iter_content(chunk_size=chunk_size):
+                           if chunk:
+                               dlf.write(chunk)
+                thread_dltime_end = time.perf_counter()
+                self._threads_dltime[dljob["chunk_id"]] = thread_dltime_end - thread_dltime_start
+
+            except Exception as err:
+                logging.error("While downloading chunk with id: {} exception occured: {}.".format(dljob["chunk_id"], err))
+                dljob["interrupted"] = True
+                self.dlqueue.put(dljob)
+
+            finally:
+                self.dlqueue.task_done()
+
+
+    def nonres_download(self):
+        """Download the file in one go, in case server doesn't support resume."""
+        with requests.get(self.url, strea=True, verify=False, allow_redirects=True) as req:
+            req.raise_for_status()
+            with open(self.filepath, "wb") as dlf:
+                chunk_size = 1024**2
+                for chunk in req.iter_content(chunk_size=chunk_size):
+                    if chunk:
+                        dlf.write(chunk)
 
     def check_integrity(self, checksum_type, checksum):
         """Check the integrity of downloaded file."""
@@ -284,9 +316,6 @@ class Downloader(UrlParser):
             else:
                 logging.debug("CRC32 and MD5 checksum integrity test FAILED.")
                 return False
-            
-
-
 
     def get_md5(self):
         with open(self.filepath, "rb") as f:
@@ -312,7 +341,7 @@ class Downloader(UrlParser):
             dlstat = self.dlstat()
             stat_str = ""
             for stat in dlstat:
-                stat_str += "Part {}: {}%\t".format(*stat)
+                stat_str += "Part {}: {}%\n".format(*stat)
             logging.info("Download status: {}".format(stat_str))
             time.sleep(5)
         if self.isfinished():
