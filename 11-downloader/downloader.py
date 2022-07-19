@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+"""Multithreaded downloader with progress bar and live download speed chart."""
+
 import re
 import os
 import sys
@@ -24,17 +26,16 @@ from rich.progress import (
         TransferSpeedColumn,
         )
 
-
+# TODO:
 # history
 # progress bar
 # download speed chart
 # max speed, avg speed, total time
 # proxy option
 # testing
-# TODO: add ftp support. youtube through yt-dlp
+# add ftp support. youtube through yt-dlp
 
-url="http://dls4.top-movies2filmha.tk/DonyayeSerial/series/The.Expanse/S01/480p/The.Expanse.S01E01.480p.x264.mkv"
-
+url="https://mirror.wayne.edu/ubuntu/releases/22.04/ubuntu-22.04-desktop-amd64.iso"
 
 class UrlParser:
     """Connect to the url server and retrieve header information."""
@@ -234,7 +235,7 @@ class Downloader(UrlParser):
                 logging.debug("Download threads have been started.")
 
                 self.log_dlstat()
-                # wait until all threads are done
+                # wait until all threads are done and the queue is empty
                 self.dlqueue.join()
         else:
             logging.debug("Starting download in non-resumable mode.")
