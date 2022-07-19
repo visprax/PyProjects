@@ -214,7 +214,6 @@ class Downloader(UrlParser):
             logging.debug("Starting download in non-resumable mode.")
             self.nonres_download()
             self.log_dlstat()
-       
 
         logging.debug("Merging file chunks into single file.")
         with open(self.filepath, "ab") as f:
@@ -222,7 +221,7 @@ class Downloader(UrlParser):
                 chunk_path = os.path.join(self.dldir, self._chunk_filename+str(tid))
                 with open(chunk_path) as chunk_file:
                     block = self.lazy_read(chunk_file)
-                     f.write(block)
+                    f.write(block)
 
         if self.checksum_type and self.checksum:
             self.check_integrity(self.checksum_type, self.checksum)
@@ -257,15 +256,15 @@ class Downloader(UrlParser):
                     else:
                         self._write_mode = "wb"
 
-               header = {"Range": "bytes={}".format(dljob["chunk_range"])}
-               with requests.get(self.url, stream=True, verify=False, allow_redirects=True, headers=header) as req:
-                   req.raise_for_status()
-                   chunk_path = os.path.join(self.dldir, self._chunk_filename+str(dljob["chunk_id"]))
-                   with open(chunk_path, self._write_mode) as dlf:
-                       chunk_size = 1024**2
-                       for chunk in req.iter_content(chunk_size=chunk_size):
-                           if chunk:
-                               dlf.write(chunk)
+                header = {"Range": "bytes={}-{}".format(*dljob["chunk_range"])}
+                with requests.get(self.url, stream=True, verify=False, allow_redirects=True, headers=header) as req:
+                    req.raise_for_status()
+                    chunk_path = os.path.join(self.dldir, self._chunk_filename+str(dljob["chunk_id"]))
+                    with open(chunk_path, self._write_mode) as dlf:
+                        chunk_size = 1024**2
+                        for chunk in req.iter_content(chunk_size=chunk_size):
+                            if chunk:
+                                dlf.write(chunk)
                 thread_dltime_end = time.perf_counter()
                 self._threads_dltime[dljob["chunk_id"]] = thread_dltime_end - thread_dltime_start
 
@@ -339,7 +338,7 @@ class Downloader(UrlParser):
     def log_dlstat(self):
         while not self.isfinished():
             dlstat = self.dlstat()
-            stat_str = ""
+            stat_str = "\n"
             for stat in dlstat:
                 stat_str += "Part {}: {}%\n".format(*stat)
             logging.info("Download status: {}".format(stat_str))
@@ -362,7 +361,7 @@ class Downloader(UrlParser):
         return dlstat
 
     def isfinished(self):
-        dlstat = dlstat()
+        dlstat = self.dlstat()
         sec_elm = lambda x: x[1]
         percentages = [sec_elm(stat) for stat in dlstat]
         if all(percent == 100.00 for percent in percentages):
