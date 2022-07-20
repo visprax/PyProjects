@@ -14,8 +14,11 @@ import hashlib
 import logging
 import argparse
 import requests
+import asciichartpy
 from queue import Queue
 from threading import Thread
+from rich.panel import Panel
+from rich.live import Live
 from rich.progress import (
         BarColumn,
         DownloadColumn,
@@ -25,6 +28,7 @@ from rich.progress import (
         TimeRemainingColumn,
         TransferSpeedColumn,
         )
+import numpy as np
 
 # TODO:
 # history
@@ -36,13 +40,14 @@ from rich.progress import (
 # add ftp support. youtube through yt-dlp, torrent
 # pass args object to classes
 
-# url="https://mirror.wayne.edu/ubuntu/releases/22.04/ubuntu-22.04-desktop-amd64.iso"
-url = "https://s3003.upera.tv/2775411-0-GangsofLondonSE-480.mp4?owner=6056023&ref=30144&id=2775411655134678&md5=Md70N_Jm0c_LYwilh_gmMg&expires=1658381992c"
+url="https://mirror.wayne.edu/ubuntu/releases/22.04/ubuntu-22.04-desktop-amd64.iso"
+# url = "https://s3003.upera.tv/2775411-0-GangsofLondonSE-480.mp4?owner=6056023&ref=30144&id=2775411655134678&md5=Md70N_Jm0c_LYwilh_gmMg&expires=1658381992c"
 
 class UrlParser:
     """Connect to the url server and retrieve header information."""
-    def __init__(self, url):
-        self.url  = url
+    def __init__(self, args):
+        self.args = args
+        self.url  = url # args.url
         self._header = self.header()
         self.filesize = self.filesize()
         self.filename = self.filename()
@@ -51,7 +56,7 @@ class UrlParser:
 
     def header(self):
         try:
-            header = requests.head(self.url).headers
+            header = requests.head(self.url, allow_redirects=True, verify=self.args.check_certificate).headers
             return header
         except Exception as err:
             logging.critical("Error occured during requesting the header information: {}".format(err))
@@ -287,16 +292,18 @@ class Downloader(UrlParser):
                         self._write_mode = "wb"
 
                 header = {"Range": "bytes={}-{}".format(*dljob["chunk_range"])}
-                with requests.get(self.url, stream=True, verify=False, allow_redirects=True, headers=header) as req:
+                with requests.get(self.url, stream=True, verify=self.args.check_certificate, allow_redirects=True, headers=header) as req:
                     req.raise_for_status()
                     chunk_path = os.path.join(self.dldir, self._chunk_filename+str(dljob["chunk_id"]))
+                    self._progress.start_task(self._progress_task_id)
                     with open(chunk_path, self._write_mode) as dlf:
-                        self._progress.start_task(self._progress_task_id)
                         chunk_size = 1024 * 2
                         for chunk in req.iter_content(chunk_size=chunk_size):
                             if chunk:
                                 dlf.write(chunk)
+                            # dlstat, total_size = self.dlstat()
                             self._progress.update(self._progress_task_id, advance=chunk_size)
+
                 thread_dltime_end = time.perf_counter()
                 self._threads_dltime[dljob["chunk_id"]] = thread_dltime_end - thread_dltime_start
 
@@ -312,7 +319,7 @@ class Downloader(UrlParser):
     def nonres_download(self):
         """Download the file in one go, in case server doesn't support resume."""
         try:
-            with requests.get(self.url, stream=True, verify=False, allow_redirects=True) as req:
+            with requests.get(self.url, stream=True, verify=self.args.check_certificate, allow_redirects=True) as req:
                 req.raise_for_status()
                 with open(self.filepath, "wb") as dlf:
                     chunk_size = 1024**2
@@ -373,7 +380,7 @@ class Downloader(UrlParser):
     
     def log_dlstat(self):
         while not self.isfinished():
-            dlstat = self.dlstat()
+            dlstat, total_size = self.dlstat()
             stat_str = "\n"
             for stat in dlstat:
                 stat_str += "Part {}: {}%\n".format(*stat)
@@ -386,21 +393,21 @@ class Downloader(UrlParser):
         """Get download percentage for each thread."""
         # [(1, 98), (2, 65), ...]
         dlstat = []
+        total_size = 0
         for tid in range(self.num_threads):
             chunk_path = os.path.join(self.dldir, self._chunk_filename+str(tid))
             if os.path.isfile(chunk_path):
                 chunk_dlsize = os.stat(chunk_path).st_size
+                total_size += chunk_dlsize
                 chunk_dlperc = round((chunk_dlsize / (self.filesize/self.num_threads)) * 100, 2)
                 dlstat.append((tid, chunk_dlperc))
             else:
                 dlstat.append((tid, 0.00))
-        return dlstat
+        return dlstat, total_size
 
     def isfinished(self):
-        dlstat = self.dlstat()
-        sec_elm = lambda x: x[1]
-        percentages = [sec_elm(stat) for stat in dlstat]
-        if all(percent == 100.00 for percent in percentages):
+        dlstat, total_size = self.dlstat()
+        if total_size == self.filesize:
             return True
         else:
             return False
@@ -413,6 +420,9 @@ class Downloader(UrlParser):
                 break
             yield data
 
+    def speed_chart(self):
+        pass
+
 
 if __name__ == "__main__":
     
@@ -422,15 +432,18 @@ if __name__ == "__main__":
     # argparser.add_argument("url", help="The url of the file.")
     argparser.add_argument("-d", "--dldir", default=".", help="The download directory. Defualt is CWD.")
     argparser.add_argument("-t", "--nthrd", default=4, type=int, help="Number of threads. Default is 4.")
+    argparser.add_argument("--check-certificate", action="store_true", help="Turn on certificate verification.")
     argparser.add_argument("--debug", action="store_true", help="Turn on debug mode.")
     args = argparser.parse_args()
 
     if not args.debug:
         logging.disable()
+    if not args.check_certificate:
+        requests.packages.urllib3.disable_warnings()
 
     # xdl = Downloader(args.url, num_threads=args.nthrd, dldir=args.dldir)
 
-    xdl = Downloader(url)
+    xdl = Downloader(args)
     xdl.download()
 
     print(xdl.start_time)
