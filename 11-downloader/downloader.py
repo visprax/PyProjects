@@ -33,9 +33,11 @@ from rich.progress import (
 # max speed, avg speed, total time
 # proxy option
 # testing
-# add ftp support. youtube through yt-dlp
+# add ftp support. youtube through yt-dlp, torrent
+# pass args object to classes
 
-url="https://mirror.wayne.edu/ubuntu/releases/22.04/ubuntu-22.04-desktop-amd64.iso"
+# url="https://mirror.wayne.edu/ubuntu/releases/22.04/ubuntu-22.04-desktop-amd64.iso"
+url = "https://s3003.upera.tv/2775411-0-GangsofLondonSE-480.mp4?owner=6056023&ref=30144&id=2775411655134678&md5=Md70N_Jm0c_LYwilh_gmMg&expires=1658381992c"
 
 class UrlParser:
     """Connect to the url server and retrieve header information."""
@@ -80,7 +82,7 @@ class UrlParser:
     def supports_bytesrange(self):
         """Check if the server supports byte range. This determines resume capability."""
         if not "Accept-Ranges" in self._header.keys():
-            loggin.debug("bytes range is not supported.")
+            logging.debug("bytes range is not supported.")
             return False
         elif self._header["Accept-Ranges"] == "none":
             loggin.debug("Bytes range is not supported.")
@@ -229,8 +231,8 @@ class Downloader(UrlParser):
             with self._progress:
                 self._progress_task_id = self._progress.add_task("download", filename=self.filename, start=False)
                 for _ in range(self.num_threads):
-                    thread = Thread(target=self.download_chunk)
-                    thread.daemon = True
+                    thread = Thread(target=self.download_chunk, daemon=True)
+                    # thread.daemon = True
                     thread.start()
                 logging.debug("Download threads have been started.")
 
@@ -290,7 +292,7 @@ class Downloader(UrlParser):
                     chunk_path = os.path.join(self.dldir, self._chunk_filename+str(dljob["chunk_id"]))
                     with open(chunk_path, self._write_mode) as dlf:
                         self._progress.start_task(self._progress_task_id)
-                        chunk_size = 1024**2
+                        chunk_size = 1024 * 2
                         for chunk in req.iter_content(chunk_size=chunk_size):
                             if chunk:
                                 dlf.write(chunk)
@@ -309,13 +311,17 @@ class Downloader(UrlParser):
 
     def nonres_download(self):
         """Download the file in one go, in case server doesn't support resume."""
-        with requests.get(self.url, strea=True, verify=False, allow_redirects=True) as req:
-            req.raise_for_status()
-            with open(self.filepath, "wb") as dlf:
-                chunk_size = 1024**2
-                for chunk in req.iter_content(chunk_size=chunk_size):
-                    if chunk:
-                        dlf.write(chunk)
+        try:
+            with requests.get(self.url, stream=True, verify=False, allow_redirects=True) as req:
+                req.raise_for_status()
+                with open(self.filepath, "wb") as dlf:
+                    chunk_size = 1024**2
+                    for chunk in req.iter_content(chunk_size=chunk_size):
+                        if chunk:
+                            dlf.write(chunk)
+        except Exception as err:
+            logging.debug("Exception occured during non-resumable download: {}".format(err))
+            raise SystemExit("Error while downloading the file: {}".format(err))
 
     def check_integrity(self, checksum_type, checksum):
         """Check the integrity of downloaded file."""
@@ -414,22 +420,15 @@ if __name__ == "__main__":
 
     argparser = argparse.ArgumentParser()
     # argparser.add_argument("url", help="The url of the file.")
-    argparser.add_argument("-d", "--dldir", help="The download directory. Defualt is CWD.")
-    argparser.add_argument("-t", "--nthrd", type=int, help="Number of threads. Default is 4.")
+    argparser.add_argument("-d", "--dldir", default=".", help="The download directory. Defualt is CWD.")
+    argparser.add_argument("-t", "--nthrd", default=4, type=int, help="Number of threads. Default is 4.")
     argparser.add_argument("--debug", action="store_true", help="Turn on debug mode.")
     args = argparser.parse_args()
 
     if not args.debug:
         logging.disable()
 
-    # if args.nthrd and args.dldir:
-        # xdl = Downloader(args.url, num_threads=args.nthrd, dldir=args.dldir)
-    # elif args.nthrd and not args.dldir:
-        # xdl = Downloader(args.url, num_threads=args.nthrd)
-    # elif not args.nthrd and args.dldir:
-        # xdl = Downloader(args.url, dldir=args.dldir)
-    # else:
-        # xdl = Downloader(args.url)
+    # xdl = Downloader(args.url, num_threads=args.nthrd, dldir=args.dldir)
 
     xdl = Downloader(url)
     xdl.download()
