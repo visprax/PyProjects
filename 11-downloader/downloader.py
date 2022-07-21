@@ -14,11 +14,13 @@ import hashlib
 import logging
 import argparse
 import requests
+import threading
 import asciichartpy
 from queue import Queue
-from threading import Thread
 from rich.panel import Panel
 from rich.live import Live
+from rich.table import Table
+from rich.console import Group
 from rich.progress import (
         BarColumn,
         DownloadColumn,
@@ -28,7 +30,6 @@ from rich.progress import (
         TimeRemainingColumn,
         TransferSpeedColumn,
         )
-import numpy as np
 
 # TODO:
 # history
@@ -160,6 +161,10 @@ class Downloader(UrlParser):
                 TimeRemainingColumn(),
                 )
         self._progress_task_id = None
+        # self._progress_grid = Table.grid(expand=True)
+        # self._progress_grid.add_column(justify="center")
+        # self._progress_grid.add_row(Panel(asciichartpy.plot(self._progress_task_id.speed), expand=False, title="bold][orange]Transfer Speed[/bold][/orange]"))
+        # self._progress_grid.add_row(Panel(self._progress, title="Progress", border_style="none"))
 
         logging.info("\nFile Name: {} \nFile Size: {:.2f} MiB \nResumable: {} \nChecksum: {} \nNumber of Threads: {}" \
                 .format(self.filename, self.filesize/(1024**2), self.resumable, self.checksum_type, self.num_threads))
@@ -236,10 +241,18 @@ class Downloader(UrlParser):
             with self._progress:
                 self._progress_task_id = self._progress.add_task("download", filename=self.filename, start=False)
                 for _ in range(self.num_threads):
-                    thread = Thread(target=self.download_chunk, daemon=True)
-                    # thread.daemon = True
+                    thread = threading.Thread(target=self.download_chunk)
+                    thread.daemon = True
                     thread.start()
                 logging.debug("Download threads have been started.")
+               
+                with Live(refresh_per_second=1) as live:
+                    speeds = []
+                    speed = self.log_speed(1)
+                    speeds.append(speed)
+                    live.update(self._progress.log(Panel(asciichartpy.plot(speeds), expand=False, title="[orange]Speed[/orange]")))
+                logging.debug("Download speed thread has been started.")
+
 
                 self.log_dlstat()
                 # wait until all threads are done and the queue is empty
@@ -296,13 +309,26 @@ class Downloader(UrlParser):
                     req.raise_for_status()
                     chunk_path = os.path.join(self.dldir, self._chunk_filename+str(dljob["chunk_id"]))
                     self._progress.start_task(self._progress_task_id)
+                    speeds = []
                     with open(chunk_path, self._write_mode) as dlf:
+                        # self._progress.console.log(asciichartpy.plot([1, 2, 3, 4]))
                         chunk_size = 1024 * 2
                         for chunk in req.iter_content(chunk_size=chunk_size):
                             if chunk:
                                 dlf.write(chunk)
-                            # dlstat, total_size = self.dlstat()
-                            self._progress.update(self._progress_task_id, advance=chunk_size)
+                            # with Live(self._progress_grid, refresh_per_second=1) as live:
+                                # while not self._progress.finished:
+                                    # sleep(0.1)
+                                    # for task in self._progress.tasks:
+                                        # print(task)
+                                        # if not task.finished:
+                                            # # task.advance(chunk_size)
+                                
+                                self._progress.update(self._progress_task_id, advance=chunk_size)
+
+                                # self._progress.console.log(asciichartpy.plot(self._progress_task_id.speed))
+
+
 
                 thread_dltime_end = time.perf_counter()
                 self._threads_dltime[dljob["chunk_id"]] = thread_dltime_end - thread_dltime_start
@@ -420,8 +446,21 @@ class Downloader(UrlParser):
                 break
             yield data
 
-    def speed_chart(self):
-        pass
+    def log_speed(self, interval):
+        """Log transfer speed every 'interval' seconds."""
+        speed_thread = threading.Timer(interval, self.log_speed, args=[interval])
+        speed_thread.daemon = True
+        speed_thread.start()
+        for task in self._progress.tasks:
+            # time.sleep(0.5)
+            # speeds = []
+            if task.speed:
+                speed = round(task.speed, 2)
+                # speeds.append(speed)
+                # live.update(self._progress.log(Panel(asciichartpy.plot(speeds), expand=False, title="[orange]Speed[/orange]")))
+                # self._progress.console.log(speed)
+        # self._progress.console.log(speeds)
+        return speed
 
 
 if __name__ == "__main__":
