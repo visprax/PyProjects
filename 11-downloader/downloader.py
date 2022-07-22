@@ -28,22 +28,18 @@ from rich.progress import (
 
 # TODO:
 # history
-# progress bar
-# download speed chart
+# download speed chart with asciichartpy
 # max speed, avg speed, total time
 # proxy option
 # testing
 # add ftp support. youtube through yt-dlp, torrent
-# pass args object to classes
 
-url="https://mirror.wayne.edu/ubuntu/releases/22.04/ubuntu-22.04-desktop-amd64.iso"
-# url = "https://s3003.upera.tv/2775411-0-GangsofLondonSE-480.mp4?owner=6056023&ref=30144&id=2775411655134678&md5=Md70N_Jm0c_LYwilh_gmMg&expires=1658381992c"
 
 class UrlParser:
     """Connect to the url server and retrieve header information."""
     def __init__(self, args):
         self.args = args
-        self.url  = url # args.url
+        self.url  = args.url
         self._header = self.header()
         self.filesize = self.filesize()
         self.filename = self.filename()
