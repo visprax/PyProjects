@@ -1,10 +1,13 @@
 #!/usr/bin/env python
 
+import re
 import twint
 import flask
 import shutil
 import pydeck
+import numpy as np
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
+
 
 # use caching for retrieval of USA cities online.
 
@@ -12,7 +15,7 @@ from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 
 # users must have a follower threshold for the tweets of that user to be counted. (or maybe verified.)
 
-# c --> conf
+# remove tweets with less than 3 characters.
 
 # US cities information, including Latitude and Longitude
 # usa_cities_data_url = "https://simplemaps.com/static/data/us-cities/1.75/basic/simplemaps_uscities_basicv1.75.zip"
@@ -77,24 +80,13 @@ def get_usa_cities(url, zipfile):
                zipObj.extract(fileName, 'temp_csv')
     
 
-def get_tweets():
+def get_tweets(city):
     c = twint.Config()
 
-    # c.Format = "ID {id} | Username {username}"
-    # c.Store_csv = True
-    # c.Output = "tweets.csv"
-    # c.Store_pandas = True
-    # c.Min_likes = 5
-    c.Pandas = True
-
-    # c.Custom["tweet"] = ["id", "date", "place", "geo", "language", "username", "tweet"]
-
-
-    # c.Username = "noneprivacy"
-    # c.Search = "#osint"
-    # c.Proxy_host = "127.0.0.1"
-    # c.Proxy_port = 9050
-    # c.Proxy_type = "socks5"
+    c.Custom["tweet"] = ["id", "date", "time", "near", "language", "username", "tweet"]
+    c.Store_csv = True
+    c.Output = "tweets.csv"
+    c.Lang = "en"
 
     # c.Username = "elonmusk"
     c.Search = "biden"
@@ -102,12 +94,35 @@ def get_tweets():
     # c.Translate = True
     # c.TranslateDest = "it"
 
-    c.Near = "San Francisco"
+    c.Near = city
+    # c.Location = True
     # c.Geo = "48.880048,2.385939,1km"
+    
+    c.Min_likes = 10
+    c.Min_retweets = 5
+    c.Min_replies = 2
 
     twint.run.Search(c)
-    twdf = twint.storage.panda.Tweets_df
-    print(twdf.head())
+
+def remove_pattern(string, pattern):
+    r = re.findall(pattern, string)
+    for i in r:
+        string = re.sub(i, '', string)
+    return string
+
+def clean_tweets(tweets):
+    # remove retweet handles (RT @xyz:)
+    tweets = np.vectorize(remove_pattern)(tweets, "RT @[\w]*:")
+    # remove twitter handles (@xyz)
+    tweets = np.vectorize(remove_pattern)(tweets, "@[\w]*")
+    # remove url links
+    tweets = np.vectorize(remove_pattern)(tweets, "http?://[A-Za-z0-9./]*")
+    # remove special characters, numbers, punctuations (except for #)
+    tweets = np.core.defchararray.replace(tweets, "[^a-zA-Z]", " ")
+    return tweets
+
+
+
 
 def sentiment_scores(sentence):
 
@@ -141,19 +156,12 @@ def sentiment_scores(sentence):
 
 if __name__ == "__main__" :
 
-    # print("\n1st statement :")
-    # sentence = "Geeks For Geeks is the best portal for \
-                # the computer science engineering students."
-
-    # # function calling
+    # print("Statement:")
+    # sentence = "@POTUS How about this? His own people acknowledged he’s a shithead"
+    # print(sentence, '\n')
     # sentiment_scores(sentence)
 
-    # print("\n2nd Statement :")
-    # sentence = "study is going on as usual"
-    # sentiment_scores(sentence)
-
-    # print("\n3rd Statement :")
-    # sentence = "I am very sad today."
-    # sentiment_scores(sentence)
     
-    get_tweets()
+    city = "San Francisco"
+    get_tweets(city)
+    # asyncio.run(get_tweets())
