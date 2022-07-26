@@ -4,7 +4,6 @@ import twint
 import flask
 import shutil
 import pydeck
-import pandas as pd
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 
 # use caching for retrieval of USA cities online.
@@ -19,9 +18,19 @@ from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 # usa_cities_data_url = "https://simplemaps.com/static/data/us-cities/1.75/basic/simplemaps_uscities_basicv1.75.zip"
 
 def read_cities(filepath):
-    fields = ["city", "lat", "lng"]
-    df = pd.read_csv(filepath, usecols=fields)
-    return df
+    # universal line ending mode no matter what the file 
+    # line ending is, it will all be translated to \n
+    with open(filepath, 'rU') as csvfile:
+        csvreader = csv.DictReader(csvfile)
+        data = {}
+        for row in csvreader:
+            for header, value in row.items():
+                try:
+                    data[header].append(value)
+                except KeyError:
+                    data[header] = [value]
+    return data
+
 
 def download(url, filename):
     import functools
