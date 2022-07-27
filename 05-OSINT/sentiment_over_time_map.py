@@ -5,7 +5,6 @@ import twint
 import flask
 import shutil
 import pydeck
-import numpy as np
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 
 
@@ -19,6 +18,10 @@ from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 
 # US cities information, including Latitude and Longitude
 # usa_cities_data_url = "https://simplemaps.com/static/data/us-cities/1.75/basic/simplemaps_uscities_basicv1.75.zip"
+
+# use zip to iterate over "city", "lat", and "lng" lists
+# use map to apply a function to list
+# map(lambda x: x.upper(), cities)
 
 def read_cities(filepath):
     # universal line ending mode no matter what the file 
@@ -112,13 +115,14 @@ def remove_pattern(string, pattern):
 
 def clean_tweets(tweets):
     # remove retweet handles (RT @xyz:)
-    tweets = np.vectorize(remove_pattern)(tweets, "RT @[\w]*:")
+    tweets = list(map(remove_pattern, tweets, "RT @[\w]*:"))
     # remove twitter handles (@xyz)
-    tweets = np.vectorize(remove_pattern)(tweets, "@[\w]*")
+    tweets = list(map(remove_pattern, tweets, "@[\w]*"))
     # remove url links
-    tweets = np.vectorize(remove_pattern)(tweets, "http?://[A-Za-z0-9./]*")
-    # remove special characters, numbers, punctuations (except for #)
-    tweets = np.core.defchararray.replace(tweets, "[^a-zA-Z]", " ")
+    tweets = list(map(remove_pattern, tweets, "http?://[A-Za-z0-9./]*"))
+    # remove special characters, punctuations,... (except for #)
+    tweets = list(map(lambda tweet: re.sub("[^a-zA-Z0-9#]", ' ', tweet), tweets))
+
     return tweets
 
 
