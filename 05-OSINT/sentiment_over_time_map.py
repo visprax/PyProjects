@@ -5,6 +5,8 @@ import twint
 import flask
 import shutil
 import pydeck
+from threading import Thread
+from multiprocessing import Pool
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 
 
@@ -22,6 +24,11 @@ from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 # use zip to iterate over "city", "lat", and "lng" lists
 # use map to apply a function to list
 # map(lambda x: x.upper(), cities)
+
+# threading to scrape the tweets
+# multiprocessing to clean the tweets
+
+# concurrent.futures -> ThreadPoolExecuter, ProcessPoolExecuter
 
 def read_cities(filepath):
     # universal line ending mode no matter what the file 
@@ -83,29 +90,6 @@ def get_usa_cities(url, zipfile):
                zipObj.extract(fileName, 'temp_csv')
     
 
-def get_tweets(city):
-    c = twint.Config()
-
-    c.Custom["tweet"] = ["id", "date", "time", "near", "language", "username", "tweet"]
-    c.Store_csv = True
-    c.Output = "tweets.csv"
-    c.Lang = "en"
-
-    # c.Username = "elonmusk"
-    c.Search = "biden"
-    # c.Lang = "en"
-    # c.Translate = True
-    # c.TranslateDest = "it"
-
-    c.Near = city
-    # c.Location = True
-    # c.Geo = "48.880048,2.385939,1km"
-    
-    c.Min_likes = 10
-    c.Min_retweets = 5
-    c.Min_replies = 2
-
-    twint.run.Search(c)
 
 def remove_pattern(string, pattern):
     r = re.findall(pattern, string)
@@ -113,17 +97,17 @@ def remove_pattern(string, pattern):
         string = re.sub(i, '', string)
     return string
 
-def clean_tweets(tweets):
+def clean_tweet(tweet):
     # remove retweet handles (RT @xyz:)
-    tweets = list(map(remove_pattern, tweets, "RT @[\w]*:"))
+    tweet = remove_pattern(tweet, "RT @[\w]*:")
     # remove twitter handles (@xyz)
-    tweets = list(map(remove_pattern, tweets, "@[\w]*"))
+    tweet = remove_pattern(tweet, "@[\w]*")
     # remove url links
-    tweets = list(map(remove_pattern, tweets, "http?://[A-Za-z0-9./]*"))
+    tweet = remove_pattern(tweet, "http?://[A-Za-z0-9./]*")
     # remove special characters, punctuations,... (except for #)
-    tweets = list(map(lambda tweet: re.sub("[^a-zA-Z0-9#]", ' ', tweet), tweets))
+    tweet = lambda tweet: re.sub("[^a-zA-Z0-9#]", ' ', tweet)
 
-    return tweets
+    return tweet
 
 
 
@@ -156,6 +140,42 @@ def sentiment_scores(sentence):
         print("Neutral")
 
 
+def get_tweets(city, result, idx):
+    c = twint.Config()
+
+    c.Custom["tweet"] = ["id", "date", "time", "near", "language", "username", "tweet"]
+    c.Store_csv = True
+    c.Output = "tweets.csv"
+    c.Lang = "en"
+
+    # c.Username = "elonmusk"
+    c.Search = "biden"
+    # c.Lang = "en"
+    # c.Translate = True
+    # c.TranslateDest = "it"
+
+    c.Near = city
+    # c.Location = True
+    # c.Geo = "48.880048,2.385939,1km"
+    
+    c.Min_likes = 10
+    c.Min_retweets = 5
+    c.Min_replies = 2
+    
+    c.Limit = 20
+    c.Hide_output = True
+    c.Store_object = True
+    tweets = []
+    c.Store_object_tweets_list = tweets
+
+
+    twint.run.Search(c)
+    
+    # tweets_obj = twint.output.tweets_list
+
+    result[idx] = tweets
+
+    # return tweets
 
 
 if __name__ == "__main__" :
@@ -165,7 +185,62 @@ if __name__ == "__main__" :
     # print(sentence, '\n')
     # sentiment_scores(sentence)
 
-    
-    city = "San Francisco"
-    get_tweets(city)
+    NUM_THREADS = 4
+    NUM_PROCESS = 4
+
+    cities = ["New York", "Los Angeles", "Chicago", "Miami"]
+
+    threads = [None] * NUM_THREADS
+    results = [None]* NUM_THREADS
+   
+    # we have a  I/O bound problem (waiting for the scraper) so we use 
+    # threads instead of processes. if we had CPU bound problem we 
+    # would've used processes.
+    for i in range(NUM_THREADS):
+        threads[i] = Thread(target=get_tweets, args=[cities[i], results, i])
+        threads[i].start()
+
+    # tw = get_tweets(city)
+
+    # print(tw[0].near)
+    # print(tw[0].tweet)
+
+    for i in range(NUM_THREADS):
+        threads[i].join()
+
     # asyncio.run(get_tweets())
+    print(results[1][11].near)
+
+    pool = Pool(NUM_PROCESS)
+    tweets = pool.map(clean_tweet, tweets)
+
+
+class TWScraper:
+    def __init__(self, query, city=None, store=False):
+        self._query = query
+        self._city = city
+        self._store = store
+        self.tweets = []
+
+    def scrape(self):
+        config = twint.Config()
+
+        config[Custom] = ["id", "data", "time", "near", \
+                "language", "username", "tweet"]
+        config.Lang = "en"
+        config.Search = "{self._query}"
+        if self._city:
+            config.Near = "{self._city}"
+        if self._store:
+            config.Store_csv = True
+            config.Output = "tweets.csv"
+
+        config.Min_likes = 10
+        config.Min_retweets = 5
+        config.Min_replies = 2
+
+        config.Hide_output = True
+        config.Store_object = True
+        config.Store_object_tweets_list = self.tweets
+
+        twint.run.Search(config)
