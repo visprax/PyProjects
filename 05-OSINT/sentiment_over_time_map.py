@@ -216,15 +216,23 @@ if __name__ == "__main__" :
 
 
 class TWScraper:
-    def __init__(self, query, city=None, store=False, num_threads=4, num_processes=4):
+    def __init__(self, query, city=None, store=False, num_processes=4):
         self._query = query
         self._city = city
         self._store = store
-        self._num_threads = num_threads
         self._num_processes = num_processes
         self.tweets = []
 
         self.scrape()
+        self.polish()
+   
+    @property
+    def num_processes(self):
+        return self._num_processes
+    
+    @num_processes.setter
+    def num_processes(self, num_processes):
+        self._num_processes = num_processes
 
     def scrape(self):
         config = twint.Config()
@@ -247,15 +255,13 @@ class TWScraper:
         config.Hide_output = True
         config.Store_object = True
         config.Store_object_tweets_list = self.tweets
-
         twint.run.Search(config)
 
-    def polish_all(self):
+    def polish(self):
         pool = Pool(self._num_processes)
-        self.tweets = pool.map(self.polish, self.tweets)
-        
+        self.tweets = pool.map(self.sub, self.tweets)
 
-    def polish(self, tweet):
+    def sub(self, tweet):
         # retweets handles (RT @xyz), handles (@xyz), links, special chars
         patterns = ["RT @[\w]*:", "@[\w]*", "http?://[A-Za-z0-9./]*", "[^a-zA-Z0-9#]"]
         for pattern in patterns:
