@@ -1,10 +1,12 @@
 #!/usr/bin/env python
 
+import os
 import re
 import twint
 import flask
 import shutil
 import pydeck
+import requests
 from threading import Thread
 from multiprocessing import Pool
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
@@ -240,9 +242,9 @@ class TWScraper:
         config[Custom] = ["id", "data", "time", "near", \
                 "language", "username", "tweet"]
         config.Lang = "en"
-        config.Search = "{self._query}"
+        config.Search = f"{self._query}"
         if self._city:
-            config.Near = "{self._city}"
+            config.Near = f"{self._city}"
         if self._store:
             config.Store_csv = True
             config.Output = "tweets.csv"
@@ -268,3 +270,44 @@ class TWScraper:
             tweet = re.sub(pattern, '', tweet)
         return tweet
 
+
+class CityParser:
+    def __init__(self, url):
+        self._url = url
+        self._dir = "./data/city"
+
+    def download(self):
+        header = requests.head(self._url, allow_redirects=True)
+        if header.status_code != 200:
+            header.raise_for_status()
+            raise SystemExit(f"Could not connect to data server. Returned status code: {req.status_code}")
+        try:
+            self._filesize = int(header.headers["Content-Length"])
+        except KeyError:
+            self._filesize = None
+
+        try:
+            self._filename = header.headers["Content-Disposition"]
+        except KeyError:
+            self._filename = os.path.basename(self._url)
+        
+        if not os.path.exists(self._dir):
+            os.makedirs(self._dir)
+        self._filepath = os.path.join(self._dir, self._filename)
+
+        req = requests.head(self._url, stream=True, allow_redirects=True)
+        desc = "Unknown file size" if not self._filesize else ''
+        with tqdm.wrapattr(req.raw, "read", total=self._filesize, desc=desc) as raw:
+            with open(self._filepath, "wb") as output:
+                shutil.copyfileobj(raw, output)
+
+        return self._filepath
+
+        
+
+
+
+
+
+if __name__ == "__main__":
+    scraper = TWScraper("biden", city="New York")
