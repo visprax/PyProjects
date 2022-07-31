@@ -155,10 +155,7 @@ class TWScraper:
         config.Hide_output = True
         config.Store_object = True
         config.Store_object_tweets_list = self.tweets
-        if self._city:
-            print(f"Running search on twitter for {self._query} in {self._city}", end="\r")
-        else:
-            print(f"Running search on twitter for {self._query}", end="\r")
+
         twint.run.Search(config)
 
     def polish(self):
@@ -202,6 +199,18 @@ def sentiment_scores(sentence):
     else :
         print("Neutral")
 
+def get_tweets(cities, results, tidx):
+    query = "Biden"
+    count = 0
+    total = len(cities)
+    local_results = []
+    for city in cities:
+        count += 1
+        print(f"Running search on twitter for {query} in {city} ({count}/{total}).", end="\r")
+        scraper = TWScraper(query, city=city, store=True)
+        tweetsobj = scraper.tweets
+        local_results.append(tweetsobj)
+    results[tidx] = local_results
 
 if __name__ == "__main__":
 
@@ -211,27 +220,28 @@ if __name__ == "__main__":
     lats = city_data["lat"]
     lngs = city_data["lng"]
 
-    query_term = "Biden"
-    for city in cities[:5]:
-        scraper = TWScraper(query_term, city=city, store=True)
-        tweetsobj = scraper.tweets
+    # we have a  I/O bound problem (waiting for the scraper) so we use 
+    # threads instead of processes. if we had CPU bound problem we 
+    # would've used processes, like we did for polishing tweets.
+    cities = cities[:8]
+    num_threads = 4
+    threads = [None] * num_threads
+    results = [None] * num_threads
+    range_size = len(cities) / num_threads
+    for tidx in range(num_threads):
+        city_range = cities[int(tidx*range_size): int((tidx+1)*range_size)]
+        threads[tidx] = Thread(target=get_tweets, args=[city_range, results, tidx])
+        threads[tidx].start()
+    for tidx in range(num_threads):
+        threads[tidx].join()
+
+    for i in results:
+        print("*"*10)
+        print(i)
 
 
     # print("Statement:")
     # sentence = "@POTUS How about this? His own people acknowledged he’s a shithead"
     # print(sentence, '\n')
     # sentiment_scores(sentence)
-
-    # NUM_THREADS = 4
-   
-    # we have a  I/O bound problem (waiting for the scraper) so we use 
-    # threads instead of processes. if we had CPU bound problem we 
-    # would've used processes.
-    # for i in range(NUM_THREADS):
-        # threads[i] = Thread(target=get_tweets, args=[cities[i], results, i])
-        # threads[i].start()
-
-
-    # for i in range(NUM_THREADS):
-        # threads[i].join()
 
