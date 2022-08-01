@@ -16,6 +16,8 @@ from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 
 # use caching for retrieval of USA cities online.
 
+# use logging instead of prints
+
 # save as json
 
 # users must have a follower threshold for the tweets of that user to be counted. (or maybe verified.)
@@ -170,6 +172,30 @@ class TWScraper:
         return tweetobj
 
 
+def scrape_tweets(cities, tweets, tidx):
+    query = "Biden"
+    count = 0
+    total = len(cities)
+    local_results = []
+    for city in cities:
+        count += 1
+        print(f"Running search on twitter for {query} in {city} ({count}/{total}).", end="\r")
+        scraper = TWScraper(query, city=city, store=True)
+        tweetsobj = scraper.tweets
+        local_results.append(tweetsobj)
+    tweets[tidx] = local_results
+    return tweets
+
+def tweets_from_csv(filepath):
+    tweets = []
+    with open(filepath, 'r') as csvfile:
+        csvreader = csv.DictReader(csvfile)
+        for row in csvreader:
+            tweets.append(row)
+    return tweets
+
+
+
 
 
 def sentiment_scores(sentence):
@@ -199,18 +225,9 @@ def sentiment_scores(sentence):
     else :
         print("Neutral")
 
-def get_tweets(cities, results, tidx):
-    query = "Biden"
-    count = 0
-    total = len(cities)
-    local_results = []
-    for city in cities:
-        count += 1
-        print(f"Running search on twitter for {query} in {city} ({count}/{total}).", end="\r")
-        scraper = TWScraper(query, city=city, store=True)
-        tweetsobj = scraper.tweets
-        local_results.append(tweetsobj)
-    results[tidx] = local_results
+def flatten_list(l):
+    return flatten_list(l[0]) + (flatten_list(l[1:]) if len(l) > 1 else []) if type(l) is list else [l]
+
 
 if __name__ == "__main__":
 
@@ -220,24 +237,40 @@ if __name__ == "__main__":
     lats = city_data["lat"]
     lngs = city_data["lng"]
 
-    # we have a  I/O bound problem (waiting for the scraper) so we use 
-    # threads instead of processes. if we had CPU bound problem we 
-    # would've used processes, like we did for polishing tweets.
-    cities = cities[:8]
-    num_threads = 4
-    threads = [None] * num_threads
-    results = [None] * num_threads
-    range_size = len(cities) / num_threads
-    for tidx in range(num_threads):
-        city_range = cities[int(tidx*range_size): int((tidx+1)*range_size)]
-        threads[tidx] = Thread(target=get_tweets, args=[city_range, results, tidx])
-        threads[tidx].start()
-    for tidx in range(num_threads):
-        threads[tidx].join()
+    
+    tweetsdir = "./data/tweets"
+    tweets = []
+    try:
+        tweets_csvfiles = os.listdir(tweetsdir)
+    except Exception as err:
+        tweets_csvfiles = []
+    if tweets_csvfiles:
+        for csvfile in tweets_csvfiles:
+            filepath = os.path.join(tweetsdir, csvfile)
+            city_tweets = tweets_from_csv(filepath)
+            tweets.append(city_tweets)
+    else:
+        # we have a  I/O bound problem (waiting for the scraper) so we use 
+        # threads instead of processes. if we had CPU bound problem we 
+        # would've used processes, like we did for polishing tweets.
+        cities = cities[:8]
+        num_threads = 4
+        threads = [None] * num_threads
+        tweets = [None] * num_threads
+        range_size = len(cities) / num_threads
+        for tidx in range(num_threads):
+            city_range = cities[int(tidx*range_size): int((tidx+1)*range_size)]
+            threads[tidx] = Thread(target=scrape_tweets, args=[city_range, tweets, tidx])
+            threads[tidx].start()
+        for tidx in range(num_threads):
+            threads[tidx].join()
 
-    for i in results:
-        print("*"*10)
-        print(i)
+
+    if len(tweets) == 0:
+        print("Something went wrong during handling tweets. Got zero tweets!")
+    else:
+        tweets = flatten_list(tweets)
+
 
 
     # print("Statement:")
