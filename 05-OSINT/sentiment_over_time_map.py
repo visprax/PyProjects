@@ -7,6 +7,7 @@ import twint
 import flask
 import shutil
 import pydeck
+import logging
 import requests
 from tqdm import tqdm
 from threading import Thread
@@ -18,8 +19,6 @@ from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 
 # use logging instead of prints
 
-# save as json
-
 # users must have a follower threshold for the tweets of that user to be counted. (or maybe verified.)
 
 # remove tweets with less than 3 characters.
@@ -30,11 +29,6 @@ from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 # use zip to iterate over "city", "lat", and "lng" lists
 # use map to apply a function to list
 # map(lambda x: x.upper(), cities)
-
-# threading to scrape the tweets
-# multiprocessing to clean the tweets
-
-# concurrent.futures -> ThreadPoolExecuter, ProcessPoolExecuter
 
 
 class CityParser:
@@ -114,18 +108,20 @@ class CityParser:
 
 
 class TWScraper:
-    def __init__(self, query, limit=20, num_processes=4, city=None, store=False):
+    def __init__(self, query, limit=20, num_processes=os.cpu_count(), city=None, store=False, clean=False):
         self._query = query
         self._limit = limit
         self._num_processes = num_processes
         self._city = city
         self._store = store
+        self._clean = clean
         self._savedir = "./data/tweets"
         os.makedirs(self._savedir, exist_ok=True)
         self.tweets = []
 
         self.scrape()
-        self.polish()
+        if self._clean:
+            self.clean()
    
     @property
     def num_processes(self):
@@ -160,9 +156,10 @@ class TWScraper:
 
         twint.run.Search(config)
 
-    def polish(self):
+    def clean(self):
         pool = Pool(self._num_processes)
         self.tweets = pool.map(self.sub, self.tweets)
+        pool.close()
 
     def sub(self, tweetobj):
         # retweets handles (RT @xyz), handles (@xyz), links, special chars
@@ -176,13 +173,13 @@ def scrape_tweets(cities, tweets, tidx):
     query = "Biden"
     count = 0
     total = len(cities)
-    local_results = []
+    local_results = {}
     for city in cities:
         count += 1
         print(f"Running search on twitter for {query} in {city} ({count}/{total}).", end="\r")
         scraper = TWScraper(query, city=city, store=True)
         tweetsobj = scraper.tweets
-        local_results.append(tweetsobj)
+        local_results[city] = tweetsobj
     tweets[tidx] = local_results
     return tweets
 
@@ -198,32 +195,16 @@ def tweets_from_csv(filepath):
 
 
 
-def sentiment_scores(sentence):
-
-    # Create a SentimentIntensityAnalyzer object.
+def sentiment(tweet):
     sid_obj = SentimentIntensityAnalyzer()
+    # polarity_scores method of SentimentIntensityAnalyzer 
+    # object gives a sentiment dictionary, which contains 
+    # pos, neg, neu, and compound scores.
+    sentiment_dict = sid_obj.polarity_scores(tweet)
+    # we use the compound measure as our sentiment score
+    sentiment_score = sentiment_dict["compound"]
+    return sentiment_score
 
-    # polarity_scores method of SentimentIntensityAnalyzer
-    # object gives a sentiment dictionary.
-    # which contains pos, neg, neu, and compound scores.
-    sentiment_dict = sid_obj.polarity_scores(sentence)
-
-    print("Overall sentiment dictionary is : ", sentiment_dict)
-    print("sentence was rated as ", sentiment_dict['neg']*100, "% Negative")
-    print("sentence was rated as ", sentiment_dict['neu']*100, "% Neutral")
-    print("sentence was rated as ", sentiment_dict['pos']*100, "% Positive")
-
-    print("Sentence Overall Rated As", end = " ")
-
-    # decide sentiment as positive, negative and neutral
-    if sentiment_dict['compound'] >= 0.05 :
-        print("Positive")
-
-    elif sentiment_dict['compound'] <= - 0.05 :
-        print("Negative")
-
-    else :
-        print("Neutral")
 
 def flatten_list(l):
     return flatten_list(l[0]) + (flatten_list(l[1:]) if len(l) > 1 else []) if type(l) is list else [l]
@@ -239,22 +220,24 @@ if __name__ == "__main__":
 
     
     tweetsdir = "./data/tweets"
-    tweets = []
+    tweets = {}
     try:
         tweets_csvfiles = os.listdir(tweetsdir)
     except Exception as err:
         tweets_csvfiles = []
     if tweets_csvfiles:
+        # csv file name is the name of the city
         for csvfile in tweets_csvfiles:
             filepath = os.path.join(tweetsdir, csvfile)
             city_tweets = tweets_from_csv(filepath)
-            tweets.append(city_tweets)
+            # TODO: name of the file without .csv extension?
+            tweets[csvfile] = city_tweets
     else:
         # we have a  I/O bound problem (waiting for the scraper) so we use 
         # threads instead of processes. if we had CPU bound problem we 
         # would've used processes, like we did for polishing tweets.
         cities = cities[:8]
-        num_threads = 4
+        num_threads = os.cpu_count()
         threads = [None] * num_threads
         tweets = [None] * num_threads
         range_size = len(cities) / num_threads
@@ -264,12 +247,20 @@ if __name__ == "__main__":
             threads[tidx].start()
         for tidx in range(num_threads):
             threads[tidx].join()
-
+    
+    # tweets = {"New York": [...], "Los Angeles": [...], ...}
+    # tweets["New York"]=[...]
 
     if len(tweets) == 0:
         print("Something went wrong during handling tweets. Got zero tweets!")
     else:
         tweets = flatten_list(tweets)
+
+    pool = Pool(os.cpu_count())
+    tweets_sentiments = pool.map(sentiment, tweets)
+
+    # plot_data = [(lat, lng, score), ...]
+
 
 
 
