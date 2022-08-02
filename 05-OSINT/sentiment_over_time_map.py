@@ -169,19 +169,15 @@ class TWScraper:
         return tweetobj
 
 
-def scrape_tweets(cities, tweets, tidx):
+def scrape_tweets(cities):
     query = "Biden"
     count = 0
     total = len(cities)
-    local_results = {}
     for city in cities:
         count += 1
         print(f"Running search on twitter for {query} in {city} ({count}/{total}).", end="\r")
         scraper = TWScraper(query, city=city, store=True)
-        tweetsobj = scraper.tweets
-        local_results[city] = tweetsobj
-    tweets[tidx] = local_results
-    return tweets
+
 
 def tweets_from_csv(filepath):
     tweets = []
@@ -192,7 +188,18 @@ def tweets_from_csv(filepath):
     return tweets
 
 
-
+def read_tweets(tweetsdir="./data/tweets"):
+    # {"New York": [...], "Los Angeles": [...], ...}
+    tweets = {}
+    tweets_csvfiles = os.listdir(tweetsdir)
+    for csvfile in tweets_csvfiles:
+        filepath = os.path.join(tweetsdir, csvfile)
+        city_tweets = tweets_from_csv(filepath)
+        # name of the file without the .csv extension 
+        # (file names are based on city names)
+        city_name = os.path.basename(os.path.splitext(csvfile)[0])
+        tweets[city_name] = city_tweets
+    return tweets
 
 
 def sentiment(tweet):
@@ -206,66 +213,48 @@ def sentiment(tweet):
     return sentiment_score
 
 
-def flatten_list(l):
-    return flatten_list(l[0]) + (flatten_list(l[1:]) if len(l) > 1 else []) if type(l) is list else [l]
-
 
 if __name__ == "__main__":
-
     cities_url = "https://simplemaps.com/static/data/us-cities/1.75/basic/simplemaps_uscities_basicv1.75.zip"
     city_data = CityParser(cities_url).data
     cities = city_data["city"]
     lats = city_data["lat"]
     lngs = city_data["lng"]
-
     
     tweetsdir = "./data/tweets"
-    tweets = {}
     try:
         tweets_csvfiles = os.listdir(tweetsdir)
     except Exception as err:
         tweets_csvfiles = []
+
     if tweets_csvfiles:
-        # csv file name is the name of the city
-        for csvfile in tweets_csvfiles:
-            filepath = os.path.join(tweetsdir, csvfile)
-            city_tweets = tweets_from_csv(filepath)
-            # TODO: name of the file without .csv extension?
-            tweets[csvfile] = city_tweets
+        tweets = read_tweets(tweetsdir)
     else:
-        # we have a  I/O bound problem (waiting for the scraper) so we use 
-        # threads instead of processes. if we had CPU bound problem we 
+        # we have a I/O bound problem (waiting for the scraper) so we use 
+        # threads instead of processes. If we had CPU bound problem we 
         # would've used processes, like we did for polishing tweets.
-        cities = cities[:8]
+        cities = cities[:4]
         num_threads = os.cpu_count()
         threads = [None] * num_threads
         tweets = [None] * num_threads
         range_size = len(cities) / num_threads
         for tidx in range(num_threads):
             city_range = cities[int(tidx*range_size): int((tidx+1)*range_size)]
-            threads[tidx] = Thread(target=scrape_tweets, args=[city_range, tweets, tidx])
+            threads[tidx] = Thread(target=scrape_tweets, args=[city_range])
             threads[tidx].start()
         for tidx in range(num_threads):
             threads[tidx].join()
+        tweets = read_tweets(tweetsdir)
+
     
-    # tweets = {"New York": [...], "Los Angeles": [...], ...}
-    # tweets["New York"]=[...]
 
-    if len(tweets) == 0:
-        print("Something went wrong during handling tweets. Got zero tweets!")
-    else:
-        tweets = flatten_list(tweets)
+    # pool = Pool(os.cpu_count())
+    # tweets_sentiment = pool.map(sentiment, tweets)
 
-    pool = Pool(os.cpu_count())
-    tweets_sentiments = pool.map(sentiment, tweets)
+    print(tweets)
+    # print(tweets["Chicago"])
 
     # plot_data = [(lat, lng, score), ...]
 
 
-
-
-    # print("Statement:")
-    # sentence = "@POTUS How about this? His own people acknowledged he’s a shithead"
-    # print(sentence, '\n')
-    # sentiment_scores(sentence)
 
