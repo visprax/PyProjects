@@ -8,6 +8,7 @@ import flask
 import shutil
 import pydeck
 import logging
+import datetime
 import requests
 from tqdm import tqdm
 from threading import Thread
@@ -144,6 +145,10 @@ class TWScraper:
                 config.Output = os.path.join(self._savedir, f"{self._city}.csv")
             else:
                 config.Output = os.path.join(self._savedir, f"tweets.csv")
+        
+        config.Resume = os.path.join("./twint_scrape_id.txt")
+        # tweets at most from one week ago
+        config.Since = str(datetime.date.today() - datetime.timedelta(days=7))
 
         config.Min_likes = 10
         config.Min_retweets = 5
@@ -176,7 +181,7 @@ def scrape_tweets(cities):
     for city in cities:
         count += 1
         print(f"Running search on twitter for {query} in {city} ({count}/{total}).", end="\r")
-        scraper = TWScraper(query, city=city, store=True)
+        scraper = TWScraper(query, limit=4000, city=city, store=True)
 
 
 def tweets_from_csv(filepath):
@@ -202,7 +207,7 @@ def read_tweets(tweetsdir="./data/tweets"):
     return tweets
 
 
-def sentiment(tweet):
+def sentiment_score(tweet):
     sid_obj = SentimentIntensityAnalyzer()
     # polarity_scores method of SentimentIntensityAnalyzer 
     # object gives a sentiment dictionary, which contains 
@@ -213,13 +218,20 @@ def sentiment(tweet):
     return sentiment_score
 
 
-
 if __name__ == "__main__":
     cities_url = "https://simplemaps.com/static/data/us-cities/1.75/basic/simplemaps_uscities_basicv1.75.zip"
     city_data = CityParser(cities_url).data
     cities = city_data["city"]
     lats = city_data["lat"]
     lngs = city_data["lng"]
+    
+    # we consider cities which have population greater than this amount
+    population_cutoff = 10000
+    cutoff_index = next(x[0] for x in enumerate(list(map(int, city_data["population"]))) if x[1] < population_cutoff)
+    cutoff_index = 4
+    cities = cities[:cutoff_index]
+    lats = lats[:cutoff_index]
+    lngs = lngs[:cutoff_index]
     
     tweetsdir = "./data/tweets"
     try:
@@ -233,7 +245,6 @@ if __name__ == "__main__":
         # we have a I/O bound problem (waiting for the scraper) so we use 
         # threads instead of processes. If we had CPU bound problem we 
         # would've used processes, like we did for polishing tweets.
-        cities = cities[:4]
         num_threads = os.cpu_count()
         threads = [None] * num_threads
         tweets = [None] * num_threads
@@ -245,16 +256,23 @@ if __name__ == "__main__":
         for tidx in range(num_threads):
             threads[tidx].join()
         tweets = read_tweets(tweetsdir)
-
     
+    # {"New York": -0.4, "Los Angeles": 0.5, ...}
+    sentiments = []
+    for city in tweets:
+        city_sentiments = []
+        for tweet_dict in tweets[city]:
+            tweet = tweet_dict["tweet"]
+            sentiment = sentiment_score(tweet)
+            city_sentiments.append(sentiment)
+        average_city_sentiment = sum(city_sentiments) / len(city_sentiments)
+        sentiments.append(average_city_sentiment)
 
-    # pool = Pool(os.cpu_count())
-    # tweets_sentiment = pool.map(sentiment, tweets)
+    data = [{"city": cities[i], "latitude": lats[i], "longitude": lngs[i], "sentiment": sentiments[i]} for i in range(len(cities))]
+    
+    print(data)
 
-    print(tweets)
-    # print(tweets["Chicago"])
 
-    # plot_data = [(lat, lng, score), ...]
 
 
 
