@@ -14,22 +14,7 @@ from tqdm import tqdm
 from threading import Thread
 from multiprocessing import Pool
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
-
-
-# use caching for retrieval of USA cities online.
-
-# use logging instead of prints
-
-# users must have a follower threshold for the tweets of that user to be counted. (or maybe verified.)
-
-# remove tweets with less than 3 characters.
-
-# US cities information, including Latitude and Longitude
-# usa_cities_data_url = "https://simplemaps.com/static/data/us-cities/1.75/basic/simplemaps_uscities_basicv1.75.zip"
-
-# use zip to iterate over "city", "lat", and "lng" lists
-# use map to apply a function to list
-# map(lambda x: x.upper(), cities)
+# TODO: use logging instead of prints
 
 
 class CityParser:
@@ -116,8 +101,9 @@ class TWScraper:
         self._city = city
         self._store = store
         self._clean = clean
-        self._savedir = "./data/tweets"
+        self._savedir = os.path.join("./data/tweets")
         os.makedirs(self._savedir, exist_ok=True)
+        self._filepath = os.path.join(self._savedir, f"{self._city}.csv")
         self.tweets = []
 
         self.scrape()
@@ -142,13 +128,12 @@ class TWScraper:
         if self._store:
             config.Store_csv = True
             if self._city:
-                config.Output = os.path.join(self._savedir, f"{self._city}.csv")
+                config.Output = self._filepath
             else:
                 config.Output = os.path.join(self._savedir, f"tweets.csv")
         
-        config.Resume = os.path.join("./twint_scrape_id.txt")
-        # tweets at most from one week ago
-        config.Since = str(datetime.date.today() - datetime.timedelta(days=7))
+        # retrieve tweets at most from two week ago
+        # config.Since = str(datetime.date.today() - datetime.timedelta(days=14))
 
         config.Min_likes = 10
         config.Min_retweets = 5
@@ -160,6 +145,7 @@ class TWScraper:
         config.Store_object_tweets_list = self.tweets
 
         twint.run.Search(config)
+        
 
     def clean(self):
         pool = Pool(self._num_processes)
@@ -174,16 +160,6 @@ class TWScraper:
         return tweetobj
 
 
-def scrape_tweets(cities):
-    query = "Biden"
-    count = 0
-    total = len(cities)
-    for city in cities:
-        count += 1
-        print(f"Running search on twitter for {query} in {city} ({count}/{total}).", end="\r")
-        scraper = TWScraper(query, limit=4000, city=city, store=True)
-
-
 def tweets_from_csv(filepath):
     tweets = []
     with open(filepath, 'r') as csvfile:
@@ -192,8 +168,7 @@ def tweets_from_csv(filepath):
             tweets.append(row)
     return tweets
 
-
-def read_tweets(tweetsdir="./data/tweets"):
+def read_tweets(tweetsdir="./data/tweets", resume=True):
     # {"New York": [...], "Los Angeles": [...], ...}
     tweets = {}
     tweets_csvfiles = os.listdir(tweetsdir)
@@ -206,7 +181,6 @@ def read_tweets(tweetsdir="./data/tweets"):
         tweets[city_name] = city_tweets
     return tweets
 
-
 def sentiment_score(tweet):
     sid_obj = SentimentIntensityAnalyzer()
     # polarity_scores method of SentimentIntensityAnalyzer 
@@ -217,62 +191,76 @@ def sentiment_score(tweet):
     sentiment_score = sentiment_dict["compound"]
     return sentiment_score
 
+def tweets_sentiment(cities_info, num_threads, thread_index):
+    range_size = len(cities_info) / num_threads
+    cities_range = cities_info[int(thread_index*range_size): int((thread_index+1)*range_size)]
+    query = "Biden"
+    count = 0
+    total = len(cities_info)
+    for city_dict in cities_range:
+        count += 1
+        city = city_dict["city"]
+        print(f"Running search on twitter for {query} in {city} ({count}/{total}).")
+        scraper = TWScraper(query, limit=20, city=city, store=True)
+        city_tweets = [tweet_obj.tweet for tweet_obj in scraper.tweets]
+        if city_tweets:
+            city_sentiments = list(map(sentiment_score, city_tweets))
+            average_city_sentiment = sum(city_sentiments) / len(city_sentiments)
+            city_dict.update({"sentiment": round(average_city_sentiment, 3)})
 
-if __name__ == "__main__":
-    cities_url = "https://simplemaps.com/static/data/us-cities/1.75/basic/simplemaps_uscities_basicv1.75.zip"
+def get_cities_info(cities_url):
+    # data is in the descending order of the population of the city 
     city_data = CityParser(cities_url).data
     cities = city_data["city"]
     lats = city_data["lat"]
     lngs = city_data["lng"]
-    
     # we consider cities which have population greater than this amount
     population_cutoff = 10000
     cutoff_index = next(x[0] for x in enumerate(list(map(int, city_data["population"]))) if x[1] < population_cutoff)
-    cutoff_index = 4
     cities = cities[:cutoff_index]
     lats = lats[:cutoff_index]
     lngs = lngs[:cutoff_index]
+    num_cities = len(cities)
+    cities_info = [{"city": cities[i], "latitude": lats[i], "longitude": lngs[i], "sentiment": None} for i in range(num_cities)]
+    return cities_info
+
+
+if __name__ == "__main__":
+    # US cities information, including Latitude and Longitude
+    cities_data_url = "https://simplemaps.com/static/data/us-cities/1.75/basic/simplemaps_uscities_basicv1.75.zip"
+    cities_info = get_cities_info(cities_data_url)
+    cities_info = cities_info[:4]
+
+    # we have a I/O bound problem (waiting for the scraper) so we use 
+    # threads instead of processes. If we had CPU bound problem we 
+    # would've used processes, like we did for polishing tweets.
+    num_threads = os.cpu_count()
+    threads = [None] * num_threads
+    for thread_index in range(num_threads):
+        threads[thread_index] = Thread(target=tweets_sentiment, args=[cities_info, num_threads, thread_index])
+        threads[thread_index].start()
+    for thread_index in range(num_threads):
+        threads[thread_index].join()
+
+    # tweetsdir = "./data/tweets"
+    # try:
+        # tweets_csvfiles = os.listdir(tweetsdir)
+    # except Exception as err:
+        # tweets_csvfiles = []
+
+    # if tweets_csvfiles:
+        # tweets = read_tweets(tweetsdir)
+    # else:
+
+        # tweets = read_tweets(tweets_dir)
     
-    tweetsdir = "./data/tweets"
-    try:
-        tweets_csvfiles = os.listdir(tweetsdir)
-    except Exception as err:
-        tweets_csvfiles = []
-
-    if tweets_csvfiles:
-        tweets = read_tweets(tweetsdir)
-    else:
-        # we have a I/O bound problem (waiting for the scraper) so we use 
-        # threads instead of processes. If we had CPU bound problem we 
-        # would've used processes, like we did for polishing tweets.
-        num_threads = os.cpu_count()
-        threads = [None] * num_threads
-        tweets = [None] * num_threads
-        range_size = len(cities) / num_threads
-        for tidx in range(num_threads):
-            city_range = cities[int(tidx*range_size): int((tidx+1)*range_size)]
-            threads[tidx] = Thread(target=scrape_tweets, args=[city_range])
-            threads[tidx].start()
-        for tidx in range(num_threads):
-            threads[tidx].join()
-        tweets = read_tweets(tweetsdir)
     
-    # {"New York": -0.4, "Los Angeles": 0.5, ...}
-    sentiments = []
-    for city in tweets:
-        city_sentiments = []
-        for tweet_dict in tweets[city]:
-            tweet = tweet_dict["tweet"]
-            sentiment = sentiment_score(tweet)
-            city_sentiments.append(sentiment)
-        average_city_sentiment = sum(city_sentiments) / len(city_sentiments)
-        sentiments.append(average_city_sentiment)
-
-    data = [{"city": cities[i], "latitude": lats[i], "longitude": lngs[i], "sentiment": sentiments[i]} for i in range(len(cities))]
+    sentiment_dir = "./data/"
+    os.makedirs(sentiment_dir, exist_ok=True)
+    sentiment_filepath = os.path.join(sentiment_dir, "sentiments.csv")
+    with open(sentiment_filepath, 'w') as csvfile:
+        writer = csv.DictWriter(csvfile, fieldnames=["city", "latitude", "longitude", "sentiment"])
+        writer.writeheader()
+        writer.writerows(cities_info)
     
-    print(data)
-
-
-
-
-
+    print(cities_info)
