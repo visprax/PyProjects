@@ -6,10 +6,10 @@ import csv
 import twint
 import flask
 import shutil
-import pydeck
 import logging
 import datetime
 import requests
+import keplergl
 from tqdm import tqdm
 from threading import Thread
 from multiprocessing import Pool
@@ -20,7 +20,7 @@ from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 class CityParser:
     def __init__(self, url):
         self._url = url
-        self._dir = "./data/city"
+        self._dir = "./data/cities"
         self.data = {}
 
         self._filename, self._filepath = self.download()
@@ -145,7 +145,6 @@ class TWScraper:
         config.Store_object_tweets_list = self.tweets
 
         twint.run.Search(config)
-        
 
     def clean(self):
         pool = Pool(self._num_processes)
@@ -159,27 +158,6 @@ class TWScraper:
             tweetobj.tweet = re.sub(pattern, ' ', tweetobj.tweet)
         return tweetobj
 
-
-def tweets_from_csv(filepath):
-    tweets = []
-    with open(filepath, 'r') as csvfile:
-        csvreader = csv.DictReader(csvfile)
-        for row in csvreader:
-            tweets.append(row)
-    return tweets
-
-def read_tweets(tweetsdir="./data/tweets", resume=True):
-    # {"New York": [...], "Los Angeles": [...], ...}
-    tweets = {}
-    tweets_csvfiles = os.listdir(tweetsdir)
-    for csvfile in tweets_csvfiles:
-        filepath = os.path.join(tweetsdir, csvfile)
-        city_tweets = tweets_from_csv(filepath)
-        # name of the file without the .csv extension 
-        # (file names are based on city names)
-        city_name = os.path.basename(os.path.splitext(csvfile)[0])
-        tweets[city_name] = city_tweets
-    return tweets
 
 def sentiment_score(tweet):
     sid_obj = SentimentIntensityAnalyzer()
@@ -214,15 +192,83 @@ def get_cities_info(cities_url):
     cities = city_data["city"]
     lats = city_data["lat"]
     lngs = city_data["lng"]
+    counties = city_data["county_name"]
     # we consider cities which have population greater than this amount
     population_cutoff = 10000
     cutoff_index = next(x[0] for x in enumerate(list(map(int, city_data["population"]))) if x[1] < population_cutoff)
     cities = cities[:cutoff_index]
     lats = lats[:cutoff_index]
     lngs = lngs[:cutoff_index]
+    counties = counties[:cutoff_index]
     num_cities = len(cities)
-    cities_info = [{"city": cities[i], "latitude": lats[i], "longitude": lngs[i], "sentiment": None} for i in range(num_cities)]
+    cities_info = [{"city": cities[i], "latitude": lats[i], "longitude": lngs[i], "county": counties[i], "sentiment": None} for i in range(num_cities)]
     return cities_info
+
+def run_scrapers(cities_info, sentiment_filepath, num_threads=os.cpu_count(), fresh=True):
+    if fresh:
+        # we have a I/O bound problem (waiting for the scraper) so we use 
+        # threads instead of processes. If we had CPU bound problem we 
+        # would've used processes, like we did for polishing tweets.
+        threads = [None] * num_threads
+        for thread_index in range(num_threads):
+            threads[thread_index] = Thread(target=tweets_sentiment, args=[cities_info, num_threads, thread_index])
+            threads[thread_index].start()
+        for thread_index in range(num_threads):
+            threads[thread_index].join()
+    else:
+        if not os.path.isfile(sentiment_filepath):
+            raise SystemExit("The sentiment file doesn't exist.")
+        cities_info = []
+        with open(sentiment_filepath, 'r') as sentiment_file:
+            reader = csv.DictReader(sentiment_file)
+            for row in reader:
+                cities_info.append(row)
+    return cities_info
+
+def plot(cities_info):
+    latlng = [[city_dict["latitude"], city_dict["longitude"]] for city_dict in cities_info]
+    view = view = pdk.data_utils.compute_view(latlng)
+    view.zoom = 6
+    layer = pydeck.Layer(
+            "HeatmapLayer", 
+            data=cities_info,
+            auto_highlight=True,
+            get_position=["latitude", "longitude"],
+            get_weight="sentiment",
+            pickable=True,
+            )
+    view_state = pdk.ViewState(
+            longitude=-73.924, 
+            latitude=40.69, 
+            zoom=6, 
+            min_zoom=5,
+            max_zoom=15,
+            pitch=40.5,
+            bearing=-27.36
+            )
+    render = pydeck.Deck(layers=[layer], initial_view=view_state)
+    render.to_html("sentiments_map.html")
+
+def get_counties_info(cities_info):
+    # unqiue counties
+    counties = list(set([city_dict["county"] for city_dict in cities_info]))
+    # calculate counties average sentiment
+    counties_sentiment = [{"county": counties[i], "sentiment": None} for i in range(len(counties))]
+    for county in counties:
+        sentiments = []
+        for city_dict in cities_info:
+            if city_dict["county"] == county:
+                sentiment = city_dict["sentiment"]
+                if sentiment:
+                    sentiments.append(city_dict["sentiment"])
+        if sentiments:
+            average_county_sentiment = sum(sentiments) / len(sentiments)
+        else:
+            average_city_sentiment = None
+        for county_dict in counties_sentiment:
+            if county_dict["county"] == county:
+                county_dict["sentiment"] = average_city_sentiment
+    return counties_sentiment
 
 
 if __name__ == "__main__":
@@ -231,36 +277,17 @@ if __name__ == "__main__":
     cities_info = get_cities_info(cities_data_url)
     cities_info = cities_info[:4]
 
-    # we have a I/O bound problem (waiting for the scraper) so we use 
-    # threads instead of processes. If we had CPU bound problem we 
-    # would've used processes, like we did for polishing tweets.
-    num_threads = os.cpu_count()
-    threads = [None] * num_threads
-    for thread_index in range(num_threads):
-        threads[thread_index] = Thread(target=tweets_sentiment, args=[cities_info, num_threads, thread_index])
-        threads[thread_index].start()
-    for thread_index in range(num_threads):
-        threads[thread_index].join()
-
-    # tweetsdir = "./data/tweets"
-    # try:
-        # tweets_csvfiles = os.listdir(tweetsdir)
-    # except Exception as err:
-        # tweets_csvfiles = []
-
-    # if tweets_csvfiles:
-        # tweets = read_tweets(tweetsdir)
-    # else:
-
-        # tweets = read_tweets(tweets_dir)
-    
-    
-    sentiment_dir = "./data/"
-    os.makedirs(sentiment_dir, exist_ok=True)
+    sentiment_dir = os.path.join("./data/sentiments/")
     sentiment_filepath = os.path.join(sentiment_dir, "sentiments.csv")
+    cities_info = run_scrapers(cities_info, sentiment_filepath)
+    counties_sentiment = get_counties_info(cities_info)
+
+    # save the results
+    os.makedirs(sentiment_dir, exist_ok=True)
     with open(sentiment_filepath, 'w') as csvfile:
-        writer = csv.DictWriter(csvfile, fieldnames=["city", "latitude", "longitude", "sentiment"])
+        writer = csv.DictWriter(csvfile, fieldnames=list(cities_info[0].keys()))
         writer.writeheader()
         writer.writerows(cities_info)
-    
-    print(cities_info)
+
+    plot(cities_info)
+
