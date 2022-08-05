@@ -1,4 +1,5 @@
+tqdm
 twint
-keplergl
 flask
+keplergl
 vaderSentiment
