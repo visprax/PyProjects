@@ -5,14 +5,14 @@ import re
 import csv
 import json
 import twint
-import flask
 import shutil
 import logging
 import datetime
 import requests
-import keplergl
 from tqdm import tqdm
+from flask import Flask
 from threading import Thread
+from keplergl import KeplerGl
 from multiprocessing import Pool
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 # TODO: use logging instead of prints
@@ -262,6 +262,7 @@ def run_scrapers(cities_info, sentiment_filepath, num_threads=os.cpu_count(), fr
     return cities_info
 
 def write_csv(data, filepath):
+    logging.info(f"Writing {filepath}")
     with open(filepath, 'w') as csvfile:
         writer = csv.DictWriter(csvfile, fieldnames=list(data[0].keys()))
         writer.writeheader()
@@ -269,6 +270,7 @@ def write_csv(data, filepath):
 
 def read_csv(filepath, encoding="utf-8"):
     data = []
+    logging.info(f"Reading {filepath}")
     with open(filepath, 'r', encoding=encoding) as csvfile:
         reader = csv.DictReader(csvfile)
         for row in reader:
@@ -355,8 +357,33 @@ def get_geodata(counties_info):
 
 
 
-def plot(counties_info):
-    pass
+def plot(geodata):
+    sample_config_filepath = os.path.join("./data/json/", "config.json")
+    config_filepath = os.path.join("./data/json/", "sentiment_config.json")
+
+    if os.path.isfile(config_filepath):
+        logging.warn(f"{config_filepath} exists. Loading")
+        with open(config_filepath, 'r') as conf_file:
+            config = json.load(conf_file)
+    else:
+        logging.info(f"Loading {sample_config_filepath}")
+        with open(sample_config_filepath, 'r') as conf_file:
+            config = json.load(conf_file)
+        # replace some values
+        config["config"]["visState"]["layers"][0]["config"]["dataId"] = "county_sentiment"
+        config["config"]["visState"]["layers"][0]["config"]["label"] = "counties_sentiment"
+        config["config"]["visState"]["layers"][0]["visualChannels"]["colorField"]["name"] = "sentiment"
+        config["config"]["visState"]["interactionConfig"]["tooltip"]["fieldsToShow"]["jd4v637ja"] = ['NAME', 'SENTIMENT']
+
+        logging.info(f"Writing {config_filepath}")
+        with open(config_filepath) as conf_file:
+            json.dump(config, conf_file)
+
+    plot = KeplerGl(data=geodata, config=config)
+    return plot
+
+
+
 
 
 if __name__ == "__main__":
@@ -379,3 +406,4 @@ if __name__ == "__main__":
     write_csv(counties_info, counties_sentiment_filepath)
 
     geodata = get_geodata(counties_info)
+    plot = plot(geodata)
