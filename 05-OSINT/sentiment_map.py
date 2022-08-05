@@ -3,6 +3,7 @@
 import os
 import re
 import csv
+import json
 import twint
 import flask
 import shutil
@@ -193,16 +194,54 @@ def get_cities_info(cities_url):
     lats = city_data["lat"]
     lngs = city_data["lng"]
     counties = city_data["county_name"]
+    counties_fips = city_data["county_fips"]
+    states_id = city_data["state_id"]
+    states_name = city_data["state_name"]
     # we consider cities which have population greater than this amount
     population_cutoff = 10000
     cutoff_index = next(x[0] for x in enumerate(list(map(int, city_data["population"]))) if x[1] < population_cutoff)
-    cities = cities[:cutoff_index]
-    lats = lats[:cutoff_index]
-    lngs = lngs[:cutoff_index]
-    counties = counties[:cutoff_index]
+    for l in [cities, lats, lngs, counties, counties_fips, states_id, states_name]:
+        l = l[:cutoff_index]
     num_cities = len(cities)
-    cities_info = [{"city": cities[i], "latitude": lats[i], "longitude": lngs[i], "county": counties[i], "sentiment": None} for i in range(num_cities)]
+    cities_info = [{
+        "city": cities[i], 
+        "latitude": lats[i],
+        "longitude": lngs[i], 
+        "county": counties[i],
+        "county_fips": counties_fips[i], 
+        "state_id": states_id[i],
+        "state_name": states_name[i],
+        "sentiment": None
+        } \
+        for i in range(num_cities)]
     return cities_info
+
+def get_counties_info(cities_info):
+    # unqiue county fips codes
+    unique_counties = list({city_dict['county_fips']:city_dict for city_dict in cities_info}.values())
+    counties_info = [{
+        "county": county["county"], 
+        "county_fips": county["county_fips"], 
+        "state_id": county["state_id"],
+        "state_name": county["state_name"],
+        "sentiment": None
+        } \ 
+        for county in unique_counties]
+    # calculate counties average sentiment
+    for county_dict in counties_info:
+        sentiments = []
+        county = county_dict["county"]
+        for city_dict in cities_info:
+            if city_dict["county"] == county:
+                sentiment = city_dict["sentiment"]
+                if sentiment:
+                    sentiments.append(city_dict["sentiment"])
+        if sentiments:
+            average_county_sentiment = sum(sentiments) / len(sentiments)
+        else:
+            average_city_sentiment = None
+        county_dict["sentiment"] == average_county_sentiment
+    return counties_info
 
 def run_scrapers(cities_info, sentiment_filepath, num_threads=os.cpu_count(), fresh=True):
     if fresh:
@@ -219,56 +258,105 @@ def run_scrapers(cities_info, sentiment_filepath, num_threads=os.cpu_count(), fr
         if not os.path.isfile(sentiment_filepath):
             raise SystemExit("The sentiment file doesn't exist.")
         cities_info = []
-        with open(sentiment_filepath, 'r') as sentiment_file:
-            reader = csv.DictReader(sentiment_file)
-            for row in reader:
-                cities_info.append(row)
+        cities_info = read_csv(sentiment_filepath)
     return cities_info
 
-def plot(cities_info):
-    latlng = [[city_dict["latitude"], city_dict["longitude"]] for city_dict in cities_info]
-    view = view = pdk.data_utils.compute_view(latlng)
-    view.zoom = 6
-    layer = pydeck.Layer(
-            "HeatmapLayer", 
-            data=cities_info,
-            auto_highlight=True,
-            get_position=["latitude", "longitude"],
-            get_weight="sentiment",
-            pickable=True,
-            )
-    view_state = pdk.ViewState(
-            longitude=-73.924, 
-            latitude=40.69, 
-            zoom=6, 
-            min_zoom=5,
-            max_zoom=15,
-            pitch=40.5,
-            bearing=-27.36
-            )
-    render = pydeck.Deck(layers=[layer], initial_view=view_state)
-    render.to_html("sentiments_map.html")
+def write_csv(data, filepath):
+    with open(filepath, 'w') as csvfile:
+        writer = csv.DictWriter(csvfile, fieldnames=list(data[0].keys()))
+        writer.writeheader()
+        writer.writerows(data)
 
-def get_counties_info(cities_info):
-    # unqiue counties
-    counties = list(set([city_dict["county"] for city_dict in cities_info]))
-    # calculate counties average sentiment
-    counties_sentiment = [{"county": counties[i], "sentiment": None} for i in range(len(counties))]
-    for county in counties:
-        sentiments = []
-        for city_dict in cities_info:
-            if city_dict["county"] == county:
-                sentiment = city_dict["sentiment"]
-                if sentiment:
-                    sentiments.append(city_dict["sentiment"])
-        if sentiments:
-            average_county_sentiment = sum(sentiments) / len(sentiments)
+def read_csv(filepath, encoding="utf-8"):
+    data = []
+    with open(filepath, 'r', encoding=encoding) as csvfile:
+        reader = csv.DictReader(csvfile)
+        for row in reader:
+    return data
+
+def download(url, filepath):
+    if os.path.isfile(filepath):
+        logging.info(f"Warning: File '{filepath}' exists. Aborting download.")
+    else:
+        try:
+            header = requests.head(url, stream=True, allow_redirects=True)
+        except Exception as err:
+            logging.error(f"Error: {err}, occured during connection to server, while downloading from: {url}")
+
+        try:
+            filename = header.headers["Content-Disposition"]
+        except:
+            filename = os.path.basename(url)
+
+        try:
+            filesize = header.headers["Content-Length"]
+        except:
+            filesize = None
+
+        logging.info(f"Downloading: {filename}")
+        response = requests.get(url, stream=True, allow_redirects=True)
+        blocksize = 1024
+        progress_bar = tqdm(total=filesize, unit="iB", unit_scale=True)
+        with open(filepath, "wb") as dlfile:
+            for data in response.iter_content(blocksize):
+                progress_bar.update(len(data))
+                dlfile.write(data)
+        progress_bar.close()
+        if progress_bar.n != filesize:
+            logging.critical(f"Error occured during download from {url}")
+            raise RuntimeError()
+
+def get_geodata(counties_info):
+    json_dir = "./data/json/"
+    os.makedirs(json_dir, exist_ok=True)
+
+    sample_geojson_url = "https://raw.githubusercontent.com/uber-web/kepler.gl-data/master/county_unemployment/data.geojson"
+    sample_config_url = "https://raw.githubusercontent.com/uber-web/kepler.gl-data/master/county_unemployment/config.json"
+    sample_geojson_path = os.path.join(json_dir, "data.geojson")
+    sample_config_path = os.path.join(json_dir, "config.json")
+    urls = [sample_geojson_url, sample_config_url]
+    filepathes = [sample_geojson_path, sample_config_url]
+    for url, filepath in zip(urls, filepathes):
+        download(url, filepath)
+    
+    with open(sample_geojson_path, 'r') as geofile:
+        geodata = json.load(geofile)
+    # add sentiment to sample geo json data
+    for i in range(len(geodata["features"])):
+        props = geodata["features"][i]["properties"]
+        county_fips = int(props["GEOID"])
+        for county in counties_info:
+            found = False
+            if county["county_fips"] == county_fips:
+                found = True
+                new_props = {
+                        'NAME': props['NAME'], 
+                        'ALAND': props['ALAND'], 
+                        'LSAD': props['LSAD'],
+                        'AWATER': props['AWATER'],
+                        'COUNTYFP': props['COUNTYFP'],
+                        'AFFGEOID': props['AFFGEOID'],
+                        'GEOID': props['GEOID']
+                        'STATEFP': props['STATEFP'],
+                        'COUNTYNS': props['COUNTYNS'],
+                        'SENTIMENT': county['SENTIMENT']
+                        }
+                break
+        if found:
+            geodata["features"][i]["properties"] = new_props
         else:
-            average_city_sentiment = None
-        for county_dict in counties_sentiment:
-            if county_dict["county"] == county:
-                county_dict["sentiment"] = average_city_sentiment
-    return counties_sentiment
+            del geodata["features"][i]
+
+    # save geo data 
+    geodata_filepath = os.path.join(json_dir, "county_sentiments.geojson")
+    with open(geodata_filepath, 'w') as geofile:
+        json.dump(geodata, geofile)
+    return geodata_filepath
+
+
+
+def plot(counties_info):
+    pass
 
 
 if __name__ == "__main__":
@@ -278,16 +366,16 @@ if __name__ == "__main__":
     cities_info = cities_info[:4]
 
     sentiment_dir = os.path.join("./data/sentiments/")
-    sentiment_filepath = os.path.join(sentiment_dir, "sentiments.csv")
+    os.makedirs(sentiment_dir, exist_ok=True)
+
+    cities_sentiment_filepath = os.path.join(sentiment_dir, "cities.csv")
+    counties_sentiment_filepath = os.path.join(sentiments_dir, "counties.csv")
+
     cities_info = run_scrapers(cities_info, sentiment_filepath)
-    counties_sentiment = get_counties_info(cities_info)
+    counties_info = get_counties_info(cities_info)
 
     # save the results
-    os.makedirs(sentiment_dir, exist_ok=True)
-    with open(sentiment_filepath, 'w') as csvfile:
-        writer = csv.DictWriter(csvfile, fieldnames=list(cities_info[0].keys()))
-        writer.writeheader()
-        writer.writerows(cities_info)
+    write_csv(cities_info, cities_sentiment_filepath)
+    write_csv(counties_info, counties_sentiment_filepath)
 
-    plot(cities_info)
-
+    geodata = get_geodata(counties_info)
