@@ -15,7 +15,6 @@ from threading import Thread
 from keplergl import KeplerGl
 from multiprocessing import Pool
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
-# TODO: use logging instead of prints
 
 
 class CityParser:
@@ -73,15 +72,13 @@ class CityParser:
         try:
             files = os.listdir(self._dir)
             if len(files) == 1 and files[0].endswith(".zip"):
-                print(f"Unpacking {self._filename}")
+                logging.info(f"Unpacking {self._filename}")
                 shutil.unpack_archive(self._filepath, extract_dir=self._dir, format="zip")
         except Exception as err:
            raise RuntimeError("Error occured during unzipping the city data: {}".format(err))
 
         self._csvfile = os.path.join(self._dir, "uscities.csv")
-        print("Loading cities information.")
-        # universal line ending mode no matter what the file 
-        # line ending is, it will all be translated to \n
+        logging.info(f"Loading '{self._csvfile}'")
         with open(self._csvfile, 'r') as csvfile:
             csvreader = csv.DictReader(csvfile)
             data = {}
@@ -175,11 +172,11 @@ def tweets_sentiment(cities_info, num_threads, thread_index):
     cities_range = cities_info[int(thread_index*range_size): int((thread_index+1)*range_size)]
     query = "Biden"
     count = 0
-    total = len(cities_info)
+    total = len(cities_range)
     for city_dict in cities_range:
         count += 1
         city = city_dict["city"]
-        print(f"Running search on twitter for {query} in {city} ({count}/{total}).")
+        logging.info(f"Running search on twitter for {query} in {city} ({count}/{total})")
         scraper = TWScraper(query, limit=20, city=city, store=True)
         city_tweets = [tweet_obj.tweet for tweet_obj in scraper.tweets]
         if city_tweets:
@@ -216,7 +213,16 @@ def get_cities_info(cities_url):
         for i in range(num_cities)]
     return cities_info
 
-def get_counties_info(cities_info):
+def get_counties_info(cities_info, fresh=True):
+    sentiment_dir = os.path.join("./data/sentiments/")
+    counties_sentiment_filepath = os.path.join(sentiment_dir, "counties.csv")
+    
+    if not fresh and os.path.isfile(counties_sentiment_filepath):
+        logging.info(f"File '{counties_sentiment_filepath}' exists. Loading")
+        counties_info = read_csv(counties_sentiment_filepath)
+        return counties_info
+       
+    logging.info(f"Constructing counties info.")
     # unqiue county fips codes
     unique_counties = list({city_dict['county_fips']:city_dict for city_dict in cities_info}.values())
     counties_info = [{
@@ -225,8 +231,7 @@ def get_counties_info(cities_info):
         "state_id": county["state_id"],
         "state_name": county["state_name"],
         "sentiment": None
-        } \ 
-        for county in unique_counties]
+        } for county in unique_counties]
     # calculate counties average sentiment
     for county_dict in counties_info:
         sentiments = []
@@ -241,28 +246,36 @@ def get_counties_info(cities_info):
         else:
             average_city_sentiment = None
         county_dict["sentiment"] == average_county_sentiment
+    os.makedirs(sentiment_dir, exist_ok=True)
+    write_csv(counties_info, counties_sentiment_filepath)
     return counties_info
 
-def run_scrapers(cities_info, sentiment_filepath, num_threads=os.cpu_count(), fresh=True):
-    if fresh:
-        # we have a I/O bound problem (waiting for the scraper) so we use 
-        # threads instead of processes. If we had CPU bound problem we 
-        # would've used processes, like we did for polishing tweets.
-        threads = [None] * num_threads
-        for thread_index in range(num_threads):
-            threads[thread_index] = Thread(target=tweets_sentiment, args=[cities_info, num_threads, thread_index])
-            threads[thread_index].start()
-        for thread_index in range(num_threads):
-            threads[thread_index].join()
-    else:
-        if not os.path.isfile(sentiment_filepath):
-            raise SystemExit("The sentiment file doesn't exist.")
-        cities_info = []
-        cities_info = read_csv(sentiment_filepath)
+def run_scrapers(cities_info, num_threads=os.cpu_count(), fresh=True):
+    sentiment_dir = os.path.join("./data/sentiments/")
+    cities_sentiment_filepath = os.path.join(sentiment_dir, "cities.csv")
+
+    if not fresh and os.path.isfile(cities_sentiment_filepath):
+        logging.info(f"File '{cities_sentiment_filepath}' exists, loading")
+        cities_info = read_csv(cities_sentiment_filepath)
+        return cities_info
+
+    # we have a I/O bound problem (waiting for the scraper) so we use 
+    # threads instead of processes. If we had CPU bound problem we 
+    # would've used processes, like we did for polishing tweets.
+    threads = [None] * num_threads
+    for thread_index in range(num_threads):
+        threads[thread_index] = Thread(target=tweets_sentiment, args=[cities_info, num_threads, thread_index])
+        threads[thread_index].start()
+    for thread_index in range(num_threads):
+        threads[thread_index].join()
+    os.makedirs(sentiment_dir, exist_ok=True)
+    write_csv(cities_info, cities_sentiment_filepath)
     return cities_info
 
 def write_csv(data, filepath):
-    logging.info(f"Writing {filepath}")
+    logging.info(f"Writing '{filepath}'")
+    if os.path.isfile(filepath):
+        logging.warning(f"File '{filepath}' exists, overriding")
     with open(filepath, 'w') as csvfile:
         writer = csv.DictWriter(csvfile, fieldnames=list(data[0].keys()))
         writer.writeheader()
@@ -270,15 +283,19 @@ def write_csv(data, filepath):
 
 def read_csv(filepath, encoding="utf-8"):
     data = []
-    logging.info(f"Reading {filepath}")
-    with open(filepath, 'r', encoding=encoding) as csvfile:
-        reader = csv.DictReader(csvfile)
-        for row in reader:
+    logging.info(f"Reading '{filepath}'")
+    if os.path.isfile(filepath):
+        with open(filepath, 'r', encoding=encoding) as csvfile:
+            reader = csv.DictReader(csvfile)
+            for row in reader:
+                data.append(row)
+    else:
+        logging.error(f"File '{filepath}' doesn't exists")
     return data
 
 def download(url, filepath):
     if os.path.isfile(filepath):
-        logging.info(f"Warning: File '{filepath}' exists. Aborting download.")
+        logging.warning(f"File '{filepath}' exists, aborting download")
     else:
         try:
             header = requests.head(url, stream=True, allow_redirects=True)
@@ -295,7 +312,7 @@ def download(url, filepath):
         except:
             filesize = None
 
-        logging.info(f"Downloading: {filename}")
+        logging.info(f"Downloading: '{filename}'")
         response = requests.get(url, stream=True, allow_redirects=True)
         blocksize = 1024
         progress_bar = tqdm(total=filesize, unit="iB", unit_scale=True)
@@ -308,28 +325,39 @@ def download(url, filepath):
             logging.critical(f"Error occured during download from {url}")
             raise RuntimeError()
 
-def get_geodata(counties_info):
+def get_geodata(counties_info, fresh=True):
     json_dir = "./data/json/"
     os.makedirs(json_dir, exist_ok=True)
+    geodata_filepath = os.path.join(json_dir, "county_sentiments.geojson")
+
+    if not fresh and os.path.isfile(geodata_filepath):
+        logging.info(f"File {geodata_filepath} exists, loading")
+        with open(geodata_filepath, 'r') as geofile:
+            geodata = json.load(geofile)
+        return geodata
+
+    logging.info("Attempting to construct geo data")
 
     sample_geojson_url = "https://raw.githubusercontent.com/uber-web/kepler.gl-data/master/county_unemployment/data.geojson"
     sample_config_url = "https://raw.githubusercontent.com/uber-web/kepler.gl-data/master/county_unemployment/config.json"
-    sample_geojson_path = os.path.join(json_dir, "data.geojson")
-    sample_config_path = os.path.join(json_dir, "config.json")
+    sample_geojson_filepath = os.path.join(json_dir, "data.geojson")
+    sample_config_filepath = os.path.join(json_dir, "config.json")
     urls = [sample_geojson_url, sample_config_url]
-    filepathes = [sample_geojson_path, sample_config_url]
+    filepathes = [sample_geojson_filepath, sample_config_filepath]
     for url, filepath in zip(urls, filepathes):
         download(url, filepath)
     
-    with open(sample_geojson_path, 'r') as geofile:
+    with open(sample_geojson_filepath, 'r') as geofile:
         geodata = json.load(geofile)
+    # indices of counties that are in geodata but not in counties_info
+    indices = []
     # add sentiment to sample geo json data
     for i in range(len(geodata["features"])):
         props = geodata["features"][i]["properties"]
         county_fips = int(props["GEOID"])
+        found = False
         for county in counties_info:
-            found = False
-            if county["county_fips"] == county_fips:
+            if int(county["county_fips"]) == county_fips:
                 found = True
                 new_props = {
                         'NAME': props['NAME'], 
@@ -338,22 +366,25 @@ def get_geodata(counties_info):
                         'AWATER': props['AWATER'],
                         'COUNTYFP': props['COUNTYFP'],
                         'AFFGEOID': props['AFFGEOID'],
-                        'GEOID': props['GEOID']
+                        'GEOID': props['GEOID'],
                         'STATEFP': props['STATEFP'],
                         'COUNTYNS': props['COUNTYNS'],
-                        'SENTIMENT': county['SENTIMENT']
+                        'SENTIMENT': county['sentiment']
                         }
                 break
         if found:
             geodata["features"][i]["properties"] = new_props
         else:
-            del geodata["features"][i]
+            indices.append(i)
+    # remove the counties that we have not sentiment data
+    for i in sorted(indices, reverse=True):
+        del geodata["features"][i]
 
     # save geo data 
     geodata_filepath = os.path.join(json_dir, "county_sentiments.geojson")
     with open(geodata_filepath, 'w') as geofile:
         json.dump(geodata, geofile)
-    return geodata_filepath
+    return geodata
 
 
 
@@ -362,11 +393,11 @@ def plot(geodata):
     config_filepath = os.path.join("./data/json/", "sentiment_config.json")
 
     if os.path.isfile(config_filepath):
-        logging.warn(f"{config_filepath} exists. Loading")
+        logging.info(f"File '{config_filepath}' exists, loading")
         with open(config_filepath, 'r') as conf_file:
             config = json.load(conf_file)
     else:
-        logging.info(f"Loading {sample_config_filepath}")
+        logging.info(f"Loading '{sample_config_filepath}'")
         with open(sample_config_filepath, 'r') as conf_file:
             config = json.load(conf_file)
         # replace some values
@@ -376,34 +407,24 @@ def plot(geodata):
         config["config"]["visState"]["interactionConfig"]["tooltip"]["fieldsToShow"]["jd4v637ja"] = ['NAME', 'SENTIMENT']
 
         logging.info(f"Writing {config_filepath}")
-        with open(config_filepath) as conf_file:
+        with open(config_filepath, 'w') as conf_file:
             json.dump(config, conf_file)
 
     plot = KeplerGl(data=geodata, config=config)
     return plot
 
 
-
-
-
 if __name__ == "__main__":
+    logging.basicConfig(format='%(asctime)s  %(name)s  %(levelname)s: %(message)s', level=logging.INFO)
+
     # US cities information, including Latitude and Longitude
     cities_data_url = "https://simplemaps.com/static/data/us-cities/1.75/basic/simplemaps_uscities_basicv1.75.zip"
     cities_info = get_cities_info(cities_data_url)
     cities_info = cities_info[:4]
 
-    sentiment_dir = os.path.join("./data/sentiments/")
-    os.makedirs(sentiment_dir, exist_ok=True)
+    cities_info = run_scrapers(cities_info, fresh=True)
+    counties_info = get_counties_info(cities_info, fresh=True)
 
-    cities_sentiment_filepath = os.path.join(sentiment_dir, "cities.csv")
-    counties_sentiment_filepath = os.path.join(sentiments_dir, "counties.csv")
-
-    cities_info = run_scrapers(cities_info, sentiment_filepath)
-    counties_info = get_counties_info(cities_info)
-
-    # save the results
-    write_csv(cities_info, cities_sentiment_filepath)
-    write_csv(counties_info, counties_sentiment_filepath)
-
-    geodata = get_geodata(counties_info)
+    geodata = get_geodata(counties_info, fresh=True)
+    print(geodata)
     plot = plot(geodata)
