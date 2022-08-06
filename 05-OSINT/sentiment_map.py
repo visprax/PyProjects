@@ -16,6 +16,8 @@ from keplergl import KeplerGl
 from multiprocessing import Pool
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 
+app = Flask(__name__)
+
 
 class CityParser:
     def __init__(self, url):
@@ -413,6 +415,10 @@ def plot(geodata):
     plot.save_to_html(file_name="sentiment_map.html")
     return plot
 
+# @app.route('/')
+# def index():
+    # return plot._repr_html_()
+
 
 if __name__ == "__main__":
     logging.basicConfig(format='%(asctime)s  %(name)s  %(levelname)s: %(message)s', level=logging.INFO)
@@ -428,3 +434,5 @@ if __name__ == "__main__":
     geodata = get_geodata(counties_info, fresh=True)
 
     plot = plot(geodata)
+    
+    # app.run(debug=True)
