@@ -1,0 +1,5 @@
+city,latitude,longitude,county,county_fips,state_id,state_name,sentiment
+New York,40.6943,-73.9249,Queens,36081,NY,New York,-0.266
+Los Angeles,34.1141,-118.4068,Los Angeles,06037,CA,California,0.208
+Chicago,41.8375,-87.6866,Cook,17031,IL,Illinois,0.243
+Miami,25.7840,-80.2101,Miami-Dade,12086,FL,Florida,0.087

@@ -1,0 +1,5 @@
+county,county_fips,state_id,state_name,sentiment
+Queens,36081,NY,New York,
+Los Angeles,06037,CA,California,
+Cook,17031,IL,Illinois,
+Miami-Dade,12086,FL,Florida,
