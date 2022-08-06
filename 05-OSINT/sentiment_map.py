@@ -209,8 +209,7 @@ def get_cities_info(cities_url):
         "state_id": states_id[i],
         "state_name": states_name[i],
         "sentiment": None
-        } \
-        for i in range(num_cities)]
+        } for i in range(num_cities)]
     return cities_info
 
 def get_counties_info(cities_info, fresh=True):
@@ -410,7 +409,8 @@ def plot(geodata):
         with open(config_filepath, 'w') as conf_file:
             json.dump(config, conf_file)
 
-    plot = KeplerGl(data=geodata, config=config)
+    plot = KeplerGl(data={"Sentiment": geodata}, config=config)
+    plot.save_to_html(file_name="sentiment_map.html")
     return plot
 
 
@@ -426,5 +426,5 @@ if __name__ == "__main__":
     counties_info = get_counties_info(cities_info, fresh=True)
 
     geodata = get_geodata(counties_info, fresh=True)
-    print(geodata)
+
     plot = plot(geodata)
