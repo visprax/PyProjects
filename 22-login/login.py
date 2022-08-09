@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import os
+import argparse
 import configparser
 from getpass import getpass
 
@@ -33,8 +34,10 @@ if __name__ == "__main__":
         pfile_exists = True
     else:
         pfile_exists = False
+
+
     
-    print("Command could be one of '/login', '/change', or '/register'")
+    print("command could be one of '/login', '/change', or '/register'")
     command = input("command:> ")
     if command not in SUPPORTED_COMMANDS:
         raise SystemExit(f"'command': {command} is not supported.")
@@ -43,15 +46,26 @@ if __name__ == "__main__":
         raise SystemExit(f"'password file': {filepath} doesn't exists, can't login.")
 
     if command == "/login" and pfile_exists:
-        passwords = read_file(filepath, store_type)
         username = input("username:> ")
         password = getpass("password:> ")
+        passwords = read_file(filepath, store_type)
     
     if command == "/change":
         pass
 
     if command == "/register":
-        pass
+        username = input("username:> ")
+        # 3 tries for setting the password
+        for _ in range(3):
+            password1 = getpass("password:> ")
+            password2 = getpass("confirm password:> ")
+            if password1 == password2:
+                break
+            else:
+               raise SystemExit("passwords didn't match.")
+
+
+        email = input("email:> ")
     
     
     if is_valid(username, getpass):
