@@ -9,15 +9,45 @@ from getpass import getpass
 # TODO: get username and email from command line
 # TODO: email notifications
 
-SUPPORTED_STORE_TYPES = ["db", "json", "yaml"]
 
 
-def read_file(filepath, filetype):
-    pass
+def get_hash(string):
+    return hashlib.sha256(string.encode("utf-8")).hexdigest()
+
+def is_valid(username, password, store_type, passwords_path):
+    if not os.path.isfile(passwords_path):
+        logger.critical(f"passwords database file '{passwords_path}' doesn't exist")
+        raise SystemExit()
+
+    logger.info("checking validity of username: {username} against provided password")
+    if store_type in ["yaml", "json"]:
+        if store_type == "yaml":
+            import yaml
+            logger.info(f"reading yaml passwords file: '{passwords_path}'")
+            with open(passwords_path, 'r') as yamlfile:
+                data = yaml.safe_load(yamlfile)
+        else:
+            import json
+            logger.info(f"reading json passwords file: '{passwords_path}'")
+            with open(passwords_path, 'r') as jsonfile:
+                data = json.load(jsonfile)
+
+        generator = (item for item in data if item["username"]==username)
+        # if the username is in data return that entry else return false
+        entry = next(generator, False)
+        if entry:
+            if entry["password_hash"] == get_hash(password):
+                return True
+            else:
+                return False
+        return entry
+    
+    else:
+        import sqlite3
+        logger.info(f"querying passwords database: '{passwords_path}'")
 
 
-def is_valid(username, password):
-    return True
+
 
 
 if __name__ == "__main__":
@@ -42,34 +72,38 @@ if __name__ == "__main__":
     if args.conf:
         config_filepath = args.conf
         if not os.path.isfile(config_filepath):
-            logger.critical(f"configuration file '{config_filepath}' doesn't exist.")
-            raise SystemExit(f"configuration file '{config_filepath}' doesn't exist.")
+            logger.critical(f"config file '{config_filepath}' doesn't exist")
+            raise SystemExit()
     else:
         config_filepath = "login.conf"
         if not os.path.isfile(config_filepath):
-            logger.critical(f"configuration file '{config_filepath}' doesn't exist.")
-            raise SystemExit(f"configuration file '{config_filepath}' doesn't exist.")
+            logger.critical(f"config file '{config_filepath}' doesn't exist")
+            raise SystemExit()
 
 
     config = configparser.ConfigParser()
-    logger.info("reading configuration file: '{config_filepath}'")
+    logger.info("reading config file: '{config_filepath}'")
     config.read("login.conf")
 
     store_type = config["default"]["store_type"]
-    if store_type not in SUPPORTED_STORE_TYPES:
-        raise SystemExit(f"'store_type': {store_type} in config file not supported.")
+    supported_store_types = ["db", "json", "yaml"]
+    if store_type not in supported_store_types:
+        logger.critical(f"'store_type': {store_type} in config file not supported")
+        raise SystemExit()
     store_path = config["default"]["store_path"]
     if not os.path.exists(store_path):
-        raise SystemExit(f"'store_path': {store_path} in config file doesn't exist.")
+        logger.critical(f"'store_path': {store_path} in config file doesn't exist")
+        raise SystemExit()
     store_name = config["default"]["store_name"] + '.' + store_type
     
-    passwords_path = store_path + store_name
-    if os.path.isfile(passwords_path):
-        pfile_exists = True
-    else:
-        pfile_exists = False
+    passwords_path = os.path.join(store_path, store_name)
     
     if args.command == "login":
         username = input("username:> ")
         password = getpass("password:> ")
+
+        if is_valid(username, password, store_type, passwords_path):
+            print("Login successful.")
+        else:
+            print("Access denied.")
 
