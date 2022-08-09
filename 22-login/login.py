@@ -19,7 +19,30 @@ def get_hash(string):
     return hashlib.sha256(string.encode("utf-8")).hexdigest()
 
 def change_password(username, password, store_type, passwords_path):
-    pass
+    if store_type == "yaml":
+        logger.debug(f"opening yaml passwords file: '{passwords_path}'")
+        with open(passwords_path, "r+") as yamlfile:
+            data = yaml.safe_load(yamlfile)
+            for entry in data:
+                if entry["username"] == username:
+                    entry.update({"password_hash": get_hash(password)})
+                    break
+            yaml.dump(data, yamlfile)
+
+    elif store_type == "json":
+        logger.debug(f"opening json passwords file: '{passwords_path}'")
+        with open(passwords_path, "r+") as jsonfile:
+            data = json.load(jsonfile)
+            for entry in data:
+                if entry["username"] == username:
+                    entry.update({"password_hash": get_hash(password)})
+
+    else:
+        logger.debug(f"connection to password database: '{password_path}'")
+        connection = sqlite3.connect(passwords_path)
+        c = connection.cursor()
+        query = "UPDATE users SET password_hash = ? WHERE username = ?"
+        c.execute(query, (username, get_hash(password)))
 
 def is_valid(username, password, store_type, passwords_path):
     if not os.path.isfile(passwords_path):
@@ -48,8 +71,8 @@ def is_valid(username, password, store_type, passwords_path):
     
     else:
         logger.debug(f"querying passwords database: '{passwords_path}'")
-        conn = sqlite3.connect()
-        c = conn.cursor()
+        connection = sqlite3.connect(passwords_path)
+        c = connection.cursor()
         query = "SELECT * FROM users WHERE username = ? AND passwords_hash = ?"
         entry = c.execute(query, (username, get_hash(password))).fetchone()
         return entry is not None
