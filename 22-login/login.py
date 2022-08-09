@@ -1,7 +1,11 @@
 #!/usr/bin/env python3
 
 import os
+import json
+import yaml
+import sqlite3
 import logging
+import hashlib
 import argparse
 import configparser
 from getpass import getpass
@@ -19,19 +23,16 @@ def is_valid(username, password, store_type, passwords_path):
         logger.critical(f"passwords database file '{passwords_path}' doesn't exist")
         raise SystemExit()
 
-    logger.info("checking validity of username: {username} against provided password")
+    logger.info(f"checking validity of username: {username} against provided password")
     if store_type in ["yaml", "json"]:
         if store_type == "yaml":
-            import yaml
-            logger.info(f"reading yaml passwords file: '{passwords_path}'")
+            logger.debug(f"reading yaml passwords file: '{passwords_path}'")
             with open(passwords_path, 'r') as yamlfile:
                 data = yaml.safe_load(yamlfile)
         else:
-            import json
-            logger.info(f"reading json passwords file: '{passwords_path}'")
+            logger.debug(f"reading json passwords file: '{passwords_path}'")
             with open(passwords_path, 'r') as jsonfile:
                 data = json.load(jsonfile)
-
         generator = (item for item in data if item["username"]==username)
         # if the username is in data return that entry else return false
         entry = next(generator, False)
@@ -43,11 +44,12 @@ def is_valid(username, password, store_type, passwords_path):
         return entry
     
     else:
-        import sqlite3
-        logger.info(f"querying passwords database: '{passwords_path}'")
-
-
-
+        logger.debug(f"querying passwords database: '{passwords_path}'")
+        conn = sqlite3.connect()
+        c = conn.cursor()
+        query = "SELECT * FROM users WHERE username = ? AND passwords_hash = ?"
+        entry = c.execute(query, (username, get_hash(password))).fetchone()
+        return entry is not None
 
 
 if __name__ == "__main__":
@@ -80,10 +82,9 @@ if __name__ == "__main__":
             logger.critical(f"config file '{config_filepath}' doesn't exist")
             raise SystemExit()
 
-
     config = configparser.ConfigParser()
-    logger.info("reading config file: '{config_filepath}'")
-    config.read("login.conf")
+    logger.info(f"reading config file: '{config_filepath}'")
+    config.read(config_filepath)
 
     store_type = config["default"]["store_type"]
     supported_store_types = ["db", "json", "yaml"]
