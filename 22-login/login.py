@@ -1,16 +1,19 @@
 #!/usr/bin/env python3
 
 import os
+import logging
 import argparse
 import configparser
 from getpass import getpass
 
+# TODO: get username and email from command line
+# TODO: email notifications
+
 SUPPORTED_STORE_TYPES = ["db", "json", "yaml"]
-SUPPORTED_COMMANDS = ["/login", "/change", "/register"]
+
 
 def read_file(filepath, filetype):
-    if filetype == "yaml":
-
+    pass
 
 
 def is_valid(username, password):
@@ -18,7 +21,38 @@ def is_valid(username, password):
 
 
 if __name__ == "__main__":
+    logging.basicConfig(format='%(asctime)s  %(name)s  %(levelname)s: %(message)s')
+    logger = logging.getLogger("xlogin")
+
+    argparser = argparse.ArgumentParser(prog="xlogin", description="Perform dummy login, passsword change, and register")
+    argparser.add_argument("command", help="command to perform", choices=["login", "change", "register"])
+    argparser.add_argument("--conf", help="path to config file")
+    argparser.add_argument('-v', help="print debug messages", action="count")
+    args = argparser.parse_args()
+
+    if not args.v:
+        logging.disable()
+    elif args.v == 1:
+        logger.setLevel("ERROR")
+    elif args.v == 2:
+        logger.setLevel("INFO")
+    else:
+        logger.setLevel("DEBUG")
+
+    if args.conf:
+        config_filepath = args.conf
+        if not os.path.isfile(config_filepath):
+            logger.critical(f"configuration file '{config_filepath}' doesn't exist.")
+            raise SystemExit(f"configuration file '{config_filepath}' doesn't exist.")
+    else:
+        config_filepath = "login.conf"
+        if not os.path.isfile(config_filepath):
+            logger.critical(f"configuration file '{config_filepath}' doesn't exist.")
+            raise SystemExit(f"configuration file '{config_filepath}' doesn't exist.")
+
+
     config = configparser.ConfigParser()
+    logger.info("reading configuration file: '{config_filepath}'")
     config.read("login.conf")
 
     store_type = config["default"]["store_type"]
@@ -29,46 +63,13 @@ if __name__ == "__main__":
         raise SystemExit(f"'store_path': {store_path} in config file doesn't exist.")
     store_name = config["default"]["store_name"] + '.' + store_type
     
-    filepath = store_path + store_name
-    if os.path.isfile(filepath):
+    passwords_path = store_path + store_name
+    if os.path.isfile(passwords_path):
         pfile_exists = True
     else:
         pfile_exists = False
-
-
     
-    print("command could be one of '/login', '/change', or '/register'")
-    command = input("command:> ")
-    if command not in SUPPORTED_COMMANDS:
-        raise SystemExit(f"'command': {command} is not supported.")
-    
-    if command == "/login" and not pfile_exists:
-        raise SystemExit(f"'password file': {filepath} doesn't exists, can't login.")
-
-    if command == "/login" and pfile_exists:
+    if args.command == "login":
         username = input("username:> ")
         password = getpass("password:> ")
-        passwords = read_file(filepath, store_type)
-    
-    if command == "/change":
-        pass
 
-    if command == "/register":
-        username = input("username:> ")
-        # 3 tries for setting the password
-        for _ in range(3):
-            password1 = getpass("password:> ")
-            password2 = getpass("confirm password:> ")
-            if password1 == password2:
-                break
-            else:
-               raise SystemExit("passwords didn't match.")
-
-
-        email = input("email:> ")
-    
-    
-    if is_valid(username, getpass):
-        print("Login successful.")
-    else:
-        print("Access denied.")
