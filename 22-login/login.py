@@ -18,6 +18,9 @@ from getpass import getpass
 def get_hash(string):
     return hashlib.sha256(string.encode("utf-8")).hexdigest()
 
+def change_password(username, password, store_type, passwords_path):
+    pass
+
 def is_valid(username, password, store_type, passwords_path):
     if not os.path.isfile(passwords_path):
         logger.critical(f"passwords database file '{passwords_path}' doesn't exist")
@@ -103,8 +106,34 @@ if __name__ == "__main__":
         username = input("username:> ")
         password = getpass("password:> ")
 
+        logger.info(f"attempting to login with username: '{username}'")
         if is_valid(username, password, store_type, passwords_path):
             print("Login successful.")
         else:
             print("Access denied.")
+
+    if args.command == "change":
+        username = input("username:> ")
+        password = getpass("old password:> ")
+        if is_valid(username, password, store_type, passwords_path):
+            logger.info(f"attempting to change password for username: '{username}'")
+            # 3 tries for changing password in case the two don't match
+            tries = 0
+            while tries < 3:
+                tries += 1
+                password1 = getpass("new password:> ")
+                password2 = getpass("confirm password:> ")
+                if password1 == password2:
+                    change_password(username, password1, store_type, passwords_path)
+                    break
+                else:
+                    print("Passwords don't match.")
+            if tries == 3:
+                logger.error("maximum tries for changing password is reached, try again.")
+                print("Try again later.")
+                raise SystemExit()
+        else:
+            logger.error(f"username: '{username}' and password doesn't match an entry.")
+            print("Username or Password doesn't exist.")
+            raise SystemExit()
 
