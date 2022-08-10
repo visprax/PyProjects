@@ -7,6 +7,7 @@ from getpass import getpass
 
 from utils.parselib import validate_config
 from utils.loginlib import login_user, change_password, register_user
+from utils.emaillib import send_email
 
 # TODO: get username and email from command line
 # TODO: email notifications
@@ -54,6 +55,7 @@ def main():
         logger.info(f"attempting to login with username: '{username}'")
         if login_user(username, password, config["store_type"], config["passwords_path"]):
             print("Login successful.")
+            send_email(username, config["store_type"], config["passwords_path"], template="login")
         else:
             print("Access denied.")
 
@@ -70,6 +72,7 @@ def main():
                 password2 = getpass("confirm password:> ")
                 if password1 == password2:
                     change_password(username, password1, config["store_type"], config["passwords_path"])
+                    send_email(username, config["store_type"], config["passwords_path"], template="change")
                     break
                 else:
                     print("Passwords don't match.")
@@ -93,6 +96,7 @@ def main():
                 result = register_user(username, password1, config["store_type"], config["passwords_path"])
                 if result:
                     print("Username creation successful.")
+                    send_email(username, config["store_type"], config["passwords_path"], template="register")
                 else:
                     print("Username creation failed.")
                 break
