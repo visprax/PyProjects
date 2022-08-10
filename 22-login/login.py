@@ -1,14 +1,16 @@
 #!/usr/bin/env python3
 
 import os
+import re
 import json
 import yaml
 import sqlite3
 import logging
 import hashlib
 import argparse
-import configparser
 from getpass import getpass
+
+from config_parser import validate_config
 
 # TODO: get username and email from command line
 # TODO: email notifications
@@ -168,11 +170,15 @@ if __name__ == "__main__":
     if not args.v:
         logging.disable()
     elif args.v == 1:
-        logger.setLevel("ERROR")
+        log_level = "ERROR"
     elif args.v == 2:
-        logger.setLevel("INFO")
+        log_level = "INFO"
     else:
-        logger.setLevel("DEBUG")
+        log_level = "DEBUG"
+
+    loggers = [logging.getLogger(name) for name in logging.root.manager.loggerDict]
+    for logger in loggers:
+        logger.setLevel(log_level)
 
     if args.conf:
         config_filepath = args.conf
@@ -185,29 +191,14 @@ if __name__ == "__main__":
             logger.critical(f"config file '{config_filepath}' doesn't exist")
             raise SystemExit()
 
-    config = configparser.ConfigParser()
-    logger.info(f"reading config file: '{config_filepath}'")
-    config.read(config_filepath)
-
-    store_type = config["default"]["store_type"]
-    supported_store_types = ["db", "json", "yaml"]
-    if store_type not in supported_store_types:
-        logger.critical(f"'store_type': {store_type} in config file not supported")
-        raise SystemExit()
-    store_path = config["default"]["store_path"]
-    if not os.path.exists(store_path):
-        logger.critical(f"'store_path': {store_path} in config file doesn't exist")
-        raise SystemExit()
-    store_name = config["default"]["store_name"] + '.' + store_type
-    
-    passwords_path = os.path.join(store_path, store_name)
+    config = validate_config(config_filepath)
     
     if args.command == "login":
         username = input("username:> ")
         password = getpass("password:> ")
 
         logger.info(f"attempting to login with username: '{username}'")
-        if is_valid(username, password, store_type, passwords_path):
+        if is_valid(username, password, config["store_type"], config["passwords_path"]):
             print("Login successful.")
         else:
             print("Access denied.")
@@ -215,7 +206,7 @@ if __name__ == "__main__":
     elif args.command == "change":
         username = input("username:> ")
         password = getpass("old password:> ")
-        if is_valid(username, password, store_type, passwords_path):
+        if is_valid(username, password, config["store_type"], config["passwords_path"]):
             logger.info(f"attempting to change password for username: '{username}'")
             # 3 tries for changing password in case the two passwords don't match
             tries = 0
@@ -224,7 +215,7 @@ if __name__ == "__main__":
                 password1 = getpass("new password:> ")
                 password2 = getpass("confirm password:> ")
                 if password1 == password2:
-                    change_password(username, password1, store_type, passwords_path)
+                    change_password(username, password1, config["store_type"], config["passwords_path"])
                     break
                 else:
                     print("Passwords don't match.")
@@ -245,7 +236,7 @@ if __name__ == "__main__":
             password1 = getpass("password:> ")
             password2 = getpass("confirm password:> ")
             if password1 == password2:
-                result = register_user(username, password1, store_type, passwords_path)
+                result = register_user(username, password1, config["store_type"], config["passwords_path"])
                 if result:
                     print("Username creation successful.")
                 else:
