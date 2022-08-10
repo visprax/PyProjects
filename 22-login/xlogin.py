@@ -5,8 +5,8 @@ import logging
 import argparse
 from getpass import getpass
 
-from config_parser import validate_config
-from utils import login_user, change_password, register_user
+from utils.parselib import validate_config
+from utils.loginlib import login_user, change_password, register_user
 
 # TODO: get username and email from command line
 # TODO: email notifications
