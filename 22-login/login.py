@@ -13,8 +13,6 @@ from getpass import getpass
 # TODO: get username and email from command line
 # TODO: email notifications
 
-
-
 def get_hash(string):
     return hashlib.sha256(string.encode("utf-8")).hexdigest()
 
@@ -32,6 +30,7 @@ def register_user(username, password, store_type, passwords_path):
             data.append(entry)
             logger.debug("writing updated data to: '{passwords_path}'")
             yaml.safe_dump(data, yamlfile)
+        return True
 
     elif store_type == "json":
         logger.debug(f"opening passwords file: '{passwords_path}'")
@@ -46,23 +45,45 @@ def register_user(username, password, store_type, passwords_path):
             data.append(entry)
             logger.debug("writing updated data to: '{passwords_path}'")
             json.dump(data, jsonfile)
+        return True
 
     else:
-        if os.path.isfile(passwords_path):
-            logger.debug(f"passwords database: '{passwords_path}' exists, connecting")
-            connection = sqlite3.connect(passwords_path)
-            cursor = connection.cursor()
-            query = "UPDATE users SET password_hash = ? WHERE username = ?"
-            cursor.execute(query, (username, get_hash(password)))
-            logger.debug(f"executed query on database.")
-            connection.commit()
-            cursor.close()
-            connection.close()
+        just_created_database = False
+        if not os.path.isfile(passwords_path):
+            logger.debug(f"passwords database: '{passwords_path}' doesn't exist, creating")
+            conn = sqlite3.connect(passwords_path)
+            curs = conn.cursor()
+            query = "CREATE TABLE users (username VARCHAR, password_hash VARCHAR)"
+            conn.commit()
+            curs.close()
+            conn.close()
+            just_created_database = True
 
-
-
-
-
+        logger.debug(f"connecting to passwords database: '{passwords_path}'")
+        conn = sqlite3.connect(passwords_path)
+        curs = conn.cursor()
+        # check if username is in database if we didn't just created it
+        if just_created_database:
+            logger.debug(f"inserting user to the databse")
+            query = "INSERT INTO users (username, password_hash) VALUES (?, ?)"
+            curs.execute(query, (username, get_hash(password)))
+            conn.commit()
+        else:
+            logger.debug(f"checking availability of the username")
+            query = "SELECT * FROM users WHERE username = ?"
+            result = curs.execute(query, (username,)).fetchone()
+            conn.commit()
+            if result:
+                logger.debug(f"username: {username} already registered")
+                print("Username exists.")
+                return False
+            else:
+                query = "INSERT INTO users (username, password_hash) VALUES (?, ?)"
+                curs.execute(query, (username, get_hash(password)))
+                conn.commit()
+        curs.close()
+        conn.close()
+        return True
 
 def change_password(username, password, store_type, passwords_path):
     if store_type == "yaml":
@@ -86,14 +107,14 @@ def change_password(username, password, store_type, passwords_path):
 
     else:
         logger.debug(f"connection to password database: '{password_path}'")
-        connection = sqlite3.connect(passwords_path)
-        cursor = connection.cursor()
+        conn = sqlite3.connect(passwords_path)
+        curs = conn.cursor()
         query = "UPDATE users SET password_hash = ? WHERE username = ?"
-        cursor.execute(query, (username, get_hash(password)))
+        curs.execute(query, (username, get_hash(password)))
         logger.debug(f"executed query on database.")
-        connection.commit()
-        cursor.close()
-        connection.close()
+        conn.commit()
+        curs.close()
+        conn.close()
 
 
 def is_valid(username, password, store_type, passwords_path):
@@ -123,14 +144,14 @@ def is_valid(username, password, store_type, passwords_path):
     
     else:
         logger.debug(f"querying passwords database: '{passwords_path}'")
-        connection = sqlite3.connect(passwords_path)
-        cursor = connection.cursor()
+        conn = sqlite3.connect(passwords_path)
+        curs = conn.cursor()
         query = "SELECT * FROM users WHERE username = ? AND passwords_hash = ?"
-        entry = cursor.execute(query, (username, get_hash(password))).fetchone()
+        entry = curs.execute(query, (username, get_hash(password))).fetchone()
         logger.debug(f"executed query on database.")
-        connection.commit()
-        cursor.close()
-        connection.close()
+        conn.commit()
+        curs.close()
+        conn.close()
         return entry is not None
 
 
@@ -224,7 +245,11 @@ if __name__ == "__main__":
             password1 = getpass("password:> ")
             password2 = getpass("confirm password:> ")
             if password1 == password2:
-                register_user(username, password, store_type, passwords_path)
+                result = register_user(username, password, store_type, passwords_path)
+                if result:
+                    print("Username creation successful.")
+                else:
+                    print("Username creation failed.")
                 break
             else:
                 print("Passwords don't match.")
@@ -232,6 +257,4 @@ if __name__ == "__main__":
             logger.error("maximum tries for setting password is reached")
             print("Try again later.")
             raise SystemExit()
-
-
 
