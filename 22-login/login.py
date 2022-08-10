@@ -106,7 +106,7 @@ def change_password(username, password, store_type, passwords_path):
             json.dump(data, jsonfile)
 
     else:
-        logger.debug(f"connection to password database: '{password_path}'")
+        logger.debug(f"connection to password database: '{passwords_path}'")
         conn = sqlite3.connect(passwords_path)
         curs = conn.cursor()
         query = "UPDATE users SET password_hash = ? WHERE username = ?"
@@ -146,7 +146,7 @@ def is_valid(username, password, store_type, passwords_path):
         logger.debug(f"querying passwords database: '{passwords_path}'")
         conn = sqlite3.connect(passwords_path)
         curs = conn.cursor()
-        query = "SELECT * FROM users WHERE username = ? AND passwords_hash = ?"
+        query = "SELECT * FROM users WHERE username = ? AND password_hash = ?"
         entry = curs.execute(query, (username, get_hash(password))).fetchone()
         logger.debug(f"executed query on database.")
         conn.commit()
@@ -245,7 +245,7 @@ if __name__ == "__main__":
             password1 = getpass("password:> ")
             password2 = getpass("confirm password:> ")
             if password1 == password2:
-                result = register_user(username, password, store_type, passwords_path)
+                result = register_user(username, password1, store_type, passwords_path)
                 if result:
                     print("Username creation successful.")
                 else:
