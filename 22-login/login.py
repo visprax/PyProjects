@@ -18,6 +18,52 @@ from getpass import getpass
 def get_hash(string):
     return hashlib.sha256(string.encode("utf-8")).hexdigest()
 
+def register_user(username, password, store_type, passwords_path):
+    if store_type == "yaml":
+        logger.debug(f"opening passwords file: '{passwords_path}'")
+        with open(passwords_path, 'r+') as yamlfile:
+            data = yaml.safe_load(yamlfile)
+            for entry in data:
+                if entry["username"] == username:
+                    logger.debug(f"username: {username} already registered")
+                    print("Username exists.")
+                    return False
+            entry = {"username": username, "password_hash": get_hash(password)}
+            data.append(entry)
+            logger.debug("writing updated data to: '{passwords_path}'")
+            yaml.safe_dump(data, yamlfile)
+
+    elif store_type == "json":
+        logger.debug(f"opening passwords file: '{passwords_path}'")
+        with open(passwords_path, 'r+') as jsonfile:
+            data = json.load(jsonfile)
+            for entry in data:
+                if entry["username"] == username:
+                    logger.debug(f"username: {username} already registered")
+                    print("Username exists.")
+                    return False
+            entry = {"username": username, "password_hash": get_hash(password)}
+            data.append(entry)
+            logger.debug("writing updated data to: '{passwords_path}'")
+            json.dump(data, jsonfile)
+
+    else:
+        if os.path.isfile(passwords_path):
+            logger.debug(f"passwords database: '{passwords_path}' exists, connecting")
+            connection = sqlite3.connect(passwords_path)
+            cursor = connection.cursor()
+            query = "UPDATE users SET password_hash = ? WHERE username = ?"
+            cursor.execute(query, (username, get_hash(password)))
+            logger.debug(f"executed query on database.")
+            connection.commit()
+            cursor.close()
+            connection.close()
+
+
+
+
+
+
 def change_password(username, password, store_type, passwords_path):
     if store_type == "yaml":
         logger.debug(f"opening yaml passwords file: '{passwords_path}'")
@@ -27,7 +73,7 @@ def change_password(username, password, store_type, passwords_path):
                 if entry["username"] == username:
                     entry.update({"password_hash": get_hash(password)})
                     break
-            yaml.dump(data, yamlfile)
+            yaml.safe_dump(data, yamlfile)
 
     elif store_type == "json":
         logger.debug(f"opening json passwords file: '{passwords_path}'")
@@ -36,13 +82,19 @@ def change_password(username, password, store_type, passwords_path):
             for entry in data:
                 if entry["username"] == username:
                     entry.update({"password_hash": get_hash(password)})
+            json.dump(data, jsonfile)
 
     else:
         logger.debug(f"connection to password database: '{password_path}'")
         connection = sqlite3.connect(passwords_path)
-        c = connection.cursor()
+        cursor = connection.cursor()
         query = "UPDATE users SET password_hash = ? WHERE username = ?"
-        c.execute(query, (username, get_hash(password)))
+        cursor.execute(query, (username, get_hash(password)))
+        logger.debug(f"executed query on database.")
+        connection.commit()
+        cursor.close()
+        connection.close()
+
 
 def is_valid(username, password, store_type, passwords_path):
     if not os.path.isfile(passwords_path):
@@ -72,9 +124,13 @@ def is_valid(username, password, store_type, passwords_path):
     else:
         logger.debug(f"querying passwords database: '{passwords_path}'")
         connection = sqlite3.connect(passwords_path)
-        c = connection.cursor()
+        cursor = connection.cursor()
         query = "SELECT * FROM users WHERE username = ? AND passwords_hash = ?"
-        entry = c.execute(query, (username, get_hash(password))).fetchone()
+        entry = cursor.execute(query, (username, get_hash(password))).fetchone()
+        logger.debug(f"executed query on database.")
+        connection.commit()
+        cursor.close()
+        connection.close()
         return entry is not None
 
 
@@ -135,12 +191,12 @@ if __name__ == "__main__":
         else:
             print("Access denied.")
 
-    if args.command == "change":
+    elif args.command == "change":
         username = input("username:> ")
         password = getpass("old password:> ")
         if is_valid(username, password, store_type, passwords_path):
             logger.info(f"attempting to change password for username: '{username}'")
-            # 3 tries for changing password in case the two don't match
+            # 3 tries for changing password in case the two passwords don't match
             tries = 0
             while tries < 3:
                 tries += 1
@@ -152,11 +208,30 @@ if __name__ == "__main__":
                 else:
                     print("Passwords don't match.")
             if tries == 3:
-                logger.error("maximum tries for changing password is reached, try again.")
+                logger.error("maximum tries for changing password is reached")
                 print("Try again later.")
                 raise SystemExit()
         else:
-            logger.error(f"username: '{username}' and password doesn't match an entry.")
+            logger.error(f"username: '{username}' and password doesn't match an entry")
             print("Username or Password doesn't exist.")
             raise SystemExit()
+
+    else:
+        username = input("username:> ")
+        tries = 0
+        while tries < 3:
+            tries += 1
+            password1 = getpass("password:> ")
+            password2 = getpass("confirm password:> ")
+            if password1 == password2:
+                register_user(username, password, store_type, passwords_path)
+                break
+            else:
+                print("Passwords don't match.")
+        if tries == 3:
+            logger.error("maximum tries for setting password is reached")
+            print("Try again later.")
+            raise SystemExit()
+
+
 
