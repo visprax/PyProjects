@@ -4,9 +4,11 @@
 
 import os
 import time
+import json
 import logging
 import hashlib
 
+logger = logging.getLogger("blockchain")
 
 class Blockchain:
     """A rudimentary blockchain implementation.
@@ -15,9 +17,11 @@ class Blockchain:
 
     """
     def __init__(self):
+        logger.info("starting the blockchain.")
         self.chain = []
         self.transactions = []
-
+        
+        logger.info("creating the genesis block.")
         # create the genesis block
         self.new_block(proof=100, previous_hash=1)
 
@@ -32,6 +36,7 @@ class Blockchain:
             dict: The new block.
     
         """
+        logger.info(f"adding the new block to the chain, timestamp: {time.time()}")
         block = {
             "index": len(self.chain) + 1,
             "timestamp": time.time(),
@@ -40,6 +45,7 @@ class Blockchain:
             "previous_hash": previous_hash if previous_hash else self.hash(self.chain[-1])
                 }
         self.chain.append(block)
+        logger.info("resetting the transactions list")
         # reset the transactions for the new block
         self.transactions = []
         return block
@@ -56,6 +62,7 @@ class Blockchain:
             int: The index of the block that will hold this transaction.
         
         """
+        logger.info(f"adding the transaction from {sender} to {recipient}, amount: {}")
         transaction = {
                 "sender": sender,
                 "recipient": recipient,
@@ -85,6 +92,7 @@ class Blockchain:
             str: The hash of the block.
 
         """
+        logger.info("computing the hash of the block.")
         block_bytes = json.dumps(block, sort_keys=True).encode()
         block_hash = hashlib.sha256(block_bytes).hexdigest()
         return block_hash
