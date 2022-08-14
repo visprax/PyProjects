@@ -4,6 +4,7 @@ import time
 import json
 import logging
 import hashlib
+from urllib.parse import urlparse
 
 logger = logging.getLogger("blockchain")
 
@@ -11,12 +12,12 @@ class Blockchain:
     """A rudimentary blockchain implementation.
     
     TODO: a simple explanation of a blockchain.
-
     """
     def __init__(self):
         logger.info("starting the blockchain.")
         self.chain = []
         self.transactions = []
+        self.nodes = set()
         
         logger.info("creating the genesis block.")
         # create the genesis block
@@ -31,7 +32,6 @@ class Blockchain:
 
         Returns:
             dict: The new block.
-    
         """
         logger.info(f"adding the new block to the chain, timestamp: {time.time()}")
         block = {
@@ -57,7 +57,6 @@ class Blockchain:
 
         Returns:
             int: The index of the block that will hold this transaction.
-        
         """
         logger.info(f"adding the transaction from {sender} to {recipient}, amount: {}")
         transaction = {
@@ -87,7 +86,6 @@ class Blockchain:
 
         Returns:
             str: The hash of the block.
-
         """
         logger.info("computing the hash of the block.")
         block_bytes = json.dumps(block, sort_keys=True).encode()
@@ -105,7 +103,6 @@ class Blockchain:
 
         Returns:
             proof (int): The current valid proof.
-
         """
         proof = 0
         logger.info(f"computing proof of work, p={proof}", end="\r")
@@ -130,10 +127,26 @@ class Blockchain:
 
         Returns:
             bool: Wether the provided proof is a valid one.
-
         """
         difficulty = 4
         proof_statement = f"{last_proof}{proof}".encode()
         proof_statement_hash = hashlib.sha256(proof_statement).hexdigest()
         return proof_statement_hash[:difficulty] == '0'*difficulty
+    
+    def register_node(self, address):
+        """Register a new node in the blockchain network.
 
+        Args:
+            address (str): The URL address of the node, e.g. "http://127.0.0.1:5000"
+
+        Raises:
+            ValueError: If the address is not valid URL.
+        """
+       parsed_url = urlparse(address) 
+       hostname = parsed_url.hostname
+       if not hostname:
+           logger.error(f"can't get the hostname from node address: {address}")
+           raise ValueError("Invalid node address.")
+       port = parsed_url.port if parsed_url.port else "80"
+       self.nodes.add(f"{hostname}:{port}")
+        
