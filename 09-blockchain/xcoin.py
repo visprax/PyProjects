@@ -21,7 +21,24 @@ blockchain = Blockchain()
 
 @app.route("/mine", methods=["GET"])
 def mine():
-    pass
+    last_block = blockchain.last_block
+    last_proof = last_block["proof"]
+    proof = blockchain.proof_of_work(last_proof)
+    # reward the node for mining the new block
+    blockchain.new_transaction(sender="0", recipient=node_id, amount=1)
+    # forge the block by adding it to the chain
+    previous_hash = blockchain.block_hash(last_block)
+    block = blockchain.new_block(proof, previous_hash)
+
+    response = {
+            "message": "New block forged.",
+            "index": block["index"],
+            "transactions": block["transactions"],
+            "proof": block["proof"],
+            "previous_hash": block["previous_hash"]
+            }
+    return flask.jsonify(response), 200
+
 
 @app.route("/transactions/new", methods=["POST"])
 def new_transaction():
