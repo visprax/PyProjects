@@ -42,7 +42,7 @@ class Blockchain:
             "timestamp": time.time(),
             "transactions": self.transactions,
             "proof": proof,
-            "previous_hash": previous_hash if previous_hash else self.hash(self.chain[-1])
+            "previous_hash": previous_hash if previous_hash else self.block_hash(self.chain[-1])
                 }
         self.chain.append(block)
         logger.info("resetting the transactions list")
@@ -78,7 +78,7 @@ class Blockchain:
         return self.chain[-1]
 
     @staticmethod
-    def hash(block):
+    def block_hash(block):
         """Create the SHA256 hash of a block.
 
         Note:
@@ -97,5 +97,31 @@ class Blockchain:
         block_hash = hashlib.sha256(block_bytes).hexdigest()
         return block_hash
 
+    def proof_of_work(self, last_proof):
+        """A simple proof of work algorithm.
+
+        Find a number, p, such that hash(p'p) begins with n consecutive zeros,
+            where p' is the last block's proof.
+
+        Args:
+            last_proof (int): proof of last block.
+
+        Returns:
+            proof (int): The current valid proof.
+
+        """
+        num_leading_zeros = 4
+        proof = 0
+        logger.info(f"computing proof of work, p={proof}", end="\r")
+        proof_statement = f"{last_proof}{proof}".encode()
+        proof_statement_hash = hashlib.sha256(proof_statement).hexdigest()
+        isvalid = proof_statement_hash[:num_leading_zeros] == '0'*num_leading_zeros
+        while not isvalid:
+            proof += 1
+            logger.info(f"computing proof of work, p={proof}", end="\r")
+            proof_statement = f"{last_proof}{proof}".encode()
+            proof_statement_hash = hashlib.sha256(proof_statement).hexdigest()
+            isvalid = proof_statement_hash[:num_leading_zeros] == '0'*num_leading_zeros
+        return proof
 
 
