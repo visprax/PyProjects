@@ -59,7 +59,7 @@ class Blockchain:
         Returns:
             int: The index of the block that will hold this transaction.
         """
-        logger.info(f"adding the transaction from {sender} to {recipient}, amount: {}")
+        logger.info(f"adding the transaction from {sender} to {recipient}, amount: {amount}")
         transaction = {
                 "sender": sender,
                 "recipient": recipient,
@@ -108,12 +108,12 @@ class Blockchain:
         last_proof = last_block["proof"]
         last_hash = self.block_hash(last_block)
         proof = 0
-        logger.info(f"computing proof of work, p={proof}", end="\r")
+        logger.info(f"computing proof of work...")
         isvalid = self.isvalid_proof(last_proof, last_hash, proof)
         while not isvalid:
             proof += 1
-            logger.info(f"computing proof of work, p={proof}", end="\r")
             isvalid = self.isvalid_proof(last_proof, last_hash, proof)
+        logger.info(f"found a proof of work: {proof}")
         return proof
     
     @staticmethod
@@ -145,14 +145,13 @@ class Blockchain:
         Raises:
             ValueError: If the address is not valid URL.
         """
-       parsed_url = urlparse(address) 
-       hostname = parsed_url.hostname
-       if not hostname:
-           logger.error(f"can't get the hostname from node address: {address}")
-           raise ValueError("Invalid node address.")
-       port = parsed_url.port if parsed_url.port else "80"
-       self.nodes.add(f"{hostname}:{port}")
-        
+        parsed_url = urlparse(address) 
+        hostname = parsed_url.hostname
+        if not hostname:
+            logger.error(f"can't get the hostname from node address: {address}")
+            raise ValueError("Invalid node address.")
+        port = parsed_url.port if parsed_url.port else "80"
+        self.nodes.add(f"{hostname}:{port}")
 
     def resolve_conflict(self):
         """The consensus algorithm.
