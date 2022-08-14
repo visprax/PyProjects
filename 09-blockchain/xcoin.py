@@ -103,5 +103,6 @@ if __name__ == "__main__":
     parser.add_argument("-p", "--port", default=5000, type=int, help="the port to listen on")
     args = parser.parse_args()
     port = args.port
-
+    
+    logger.info(f"starting the node: {node_id}")
     app.run(host="0.0.0.0", port=port)
