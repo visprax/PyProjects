@@ -104,24 +104,41 @@ class Blockchain:
             where p' is the last block's proof.
 
         Args:
-            last_proof (int): proof of last block.
+            last_proof (int): Proof of last block.
 
         Returns:
             proof (int): The current valid proof.
 
         """
-        num_leading_zeros = 4
         proof = 0
         logger.info(f"computing proof of work, p={proof}", end="\r")
-        proof_statement = f"{last_proof}{proof}".encode()
-        proof_statement_hash = hashlib.sha256(proof_statement).hexdigest()
-        isvalid = proof_statement_hash[:num_leading_zeros] == '0'*num_leading_zeros
+        isvalid = self.isvalid_proof(last_proof, proof)
         while not isvalid:
             proof += 1
             logger.info(f"computing proof of work, p={proof}", end="\r")
-            proof_statement = f"{last_proof}{proof}".encode()
-            proof_statement_hash = hashlib.sha256(proof_statement).hexdigest()
-            isvalid = proof_statement_hash[:num_leading_zeros] == '0'*num_leading_zeros
+            isvalid = self.isvalid_proof(last_proof, proof)
         return proof
+    
+    @staticmethod
+    def isvalid_proof(last_proof, proof):
+        """Validate a given proof in accordance with the difficulty.
+
+        Validation is done such that hash(p'p), where p' is the last_proof 
+            and p is the current proof begins with n consecutive zeros, n 
+            is adjusted in accordance with the difficulty level.
+
+        Args:
+            last_proof (int): Proof of last block.
+            proof (int): Proof of current block.
+
+        Returns:
+            bool: Wether the provided proof is a valid one.
+
+        """
+        difficulty = 4
+        proof_statement = f"{last_proof}{proof}".encode()
+        proof_statement_hash = hashlib.sha256(proof_statement).hexdigest()
+        return proof_statement_hash[:difficulty] == '0'*difficulty
+
 
 
