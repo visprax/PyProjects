@@ -1,6 +1,5 @@
 """A rudimentary blockchain implementation."""
 
-import os
 import time
 import json
 import logging
