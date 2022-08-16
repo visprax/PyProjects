@@ -23,7 +23,7 @@ def main():
     args = argparser.parse_args()
 
     if not args.v:
-        logging.disable()
+        log_level = None
     elif args.v == 1:
         log_level = "ERROR"
     elif args.v == 2:
@@ -32,8 +32,11 @@ def main():
         log_level = "DEBUG"
 
     loggers = [logging.getLogger(name) for name in logging.root.manager.loggerDict]
-    for logger in loggers:
-        logger.setLevel(log_level)
+    if log_level:
+        for logger in loggers:
+            logger.setLevel(log_level)
+    else:
+        logging.disable()
 
     if args.conf:
         config_filepath = args.conf
