@@ -11,4 +11,6 @@ if __name__ == "__main__":
     
     logging.basicConfig(format='%(asctime)s  %(name)s  %(levelname)s: %(message)s', level=logging.INFO)
 
-    response = questdb_create_table()
+    result = questdb_create_table()
+
+    print(result)
