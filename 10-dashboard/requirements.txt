@@ -1,2 +1,5 @@
 celery
 requests
+sqlalchemy
+finnhub-python
+psycopg2-binary
