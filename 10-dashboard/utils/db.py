@@ -39,7 +39,7 @@ def questdb_create_table():
             cursor.close()
         if connection:
             connection.close()
-        logging.info("connection closed to QuestDB")
+            logging.info("connection to database closed")
 
     return result
 
