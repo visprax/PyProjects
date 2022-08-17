@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 
+import os
 import logging
 import requests
 import argparse
 import configparser
 
-from utils.db import questdb_create_table
-from utils.config_parser import read_config
+from utils.config import Config
+from utils.db import Qdb
+from utils.workers import Workers
 
 logger = logging.getLogger("stocker")
 
@@ -34,14 +36,20 @@ if __name__ == "__main__":
     else:
         logging.disable()
     
-    logger.info("reading config file")
     config = configparser.ConfigParser()
     if args.conf:
         filepath = args.conf
     else:
         filepath = "stocker.conf"
+    if not os.path.exists(filepath):
+        logger.error(f"config file doesn't exists at: {filepath}")
+        raise SystemExit()
+    
+    param_config = Config(filepath)
+    params = param_config.get_config()
+    
+    db = Qdb(params)
+    result = db.create_table()
 
-    params = read_config(filepath)
-
-    result = questdb_create_table(params)
-
+    workers = Workers(params)
+    workers.setup_periodic_tasks()
