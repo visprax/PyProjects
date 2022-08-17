@@ -39,9 +39,9 @@ if __name__ == "__main__":
     if args.conf:
         filepath = args.conf
     else:
-        filepath = "app.conf"
+        filepath = "stocker.conf"
 
     params = read_config(filepath)
 
-    result = questdb_create_table()
+    result = questdb_create_table(params)
 
