@@ -3,7 +3,7 @@ import psycopg2 as pg
 
 logger = logging.getLogger("db")
 
-def questdb_create_table():
+def questdb_create_table(params):
     logger.info("creating quotes tables in database if it doesn't already exists")
     connection = None
     cursor = None
@@ -22,11 +22,11 @@ def questdb_create_table():
             "PARTITION BY DAY;"
     try:
         connection = pg.connect(
-                user = "admin",
-                password = "quest",
-                host = "127.0.0.1",
-                port = "8812",
-                database = "qdb"
+                user     = params["database"]["user"],
+                password = params["database"]["password"],
+                host     = params["database"]["host"],
+                port     = params["database"]["port"],
+                database = params["database"]["database"]
                 )
         cursor = connection.cursor()
         result = cursor.execute(query)
@@ -39,7 +39,7 @@ def questdb_create_table():
             cursor.close()
         if connection:
             connection.close()
-            logging.info("connection to database closed")
+            logger.info("connection to database closed")
 
     return result
 
