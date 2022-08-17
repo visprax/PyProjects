@@ -4,8 +4,6 @@ import configparser
 
 logger = logging.getLogger("config")
 
-# TODO: jam finnhub section to the main loop also
-
 class Config:
     def __init__(self, filepath):
         self.filepath = filepath
