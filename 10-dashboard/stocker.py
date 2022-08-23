@@ -55,3 +55,5 @@ if __name__ == "__main__":
     result = db.create_table()
 
     worker = Worker(params)
+    app = worker.celery
+    app.worker_main(["worker", "--beat", "-c 1"])
