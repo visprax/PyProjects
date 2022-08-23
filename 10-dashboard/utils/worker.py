@@ -13,11 +13,11 @@ class Worker:
         self.db = Qdb(params)
 
         logger.info("setting up Celery")
-        celery = Celery(broker=params["celery"]["broker"])
+        self.celery = Celery("worker", broker=params["celery"]["broker"])
         logger.info("setting up Finnhub client")
-        client = Client(api_key=params["finnhub"]["key"])
+        self.client = Client(api_key=params["finnhub"]["key"])
 
-        @celery.on_after_configure.connect
+        @self.celery.on_after_configure.connect
         def setup_periodic_tasks(sender, **kwargs):
             """Periodic tasks setup for each symbol."""
             logger.info("setting up periodic tasks for each symbol")
@@ -25,10 +25,10 @@ class Worker:
             for symbol in self.params["finnhub"]["symbols"]:
                 sender.add_periodic_task(freq, fetch.s(symbol))
 
-        @celery.task
+        @self.celery.task
         def fetch(symbol):
             """Fetch symbol quotes from Finnhub and insert into database."""
             # for an explanation on the quote structure, 
             # see: https://finnhub.io/docs/api/quote
-            quote = client.quote(symbol)
+            quote = self.client.quote(symbol)
             self.db.insert_quote(symbol, quote)
