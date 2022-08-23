@@ -1,3 +1,5 @@
+dash
+plotly
 celery
 requests
 sqlalchemy
