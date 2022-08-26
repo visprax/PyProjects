@@ -17,7 +17,7 @@ can be written as:
 <img src="https://latex.codecogs.com/svg.image?\inline&space;\large&space;\boldsymbol{r}(t)&space;=&space;a(t)\boldsymbol{x}" title="https://latex.codecogs.com/svg.image?\inline \large \boldsymbol{r}(t) = a(t)\boldsymbol{x}" />
 </p>
 where we have chosen the dimensionless expansioin factor, 
-<img style="position: relative; top: 3.7px;" src="https://latex.codecogs.com/svg.image?\inline&space;\large&space;a(t)" title="https://latex.codecogs.com/svg.image?\inline \large a(t)" />
+<img src="https://latex.codecogs.com/svg.image?\inline&space;\boldsymbol{r}" title="https://latex.codecogs.com/svg.image?\inline \boldsymbol{r}" />
 such that <img style="position: relative; top: 3.7px;" src="https://latex.codecogs.com/svg.image?\inline&space;a(t_0)&space;=&space;a_0&space;=&space;1" title="https://latex.codecogs.com/svg.image?\inline a(t_0) = a_0 = 1" />
 for the present cosmic epoch and by definition 
 <img src="https://latex.codecogs.com/svg.image?\inline&space;\large&space;a(t&space;=&space;0)&space;=&space;0" title="https://latex.codecogs.com/svg.image?\inline \large a(t = 0) = 0" ></img>
