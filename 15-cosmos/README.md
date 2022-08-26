@@ -11,16 +11,30 @@ In an expanding Universe, its evolution is governed by the [Hubble expansion](ht
 If we take 
 <img style="position:relative;top:3.7px;" src="https://latex.codecogs.com/svg.image?\inline&space;\large&space;a(t)" title="https://latex.codecogs.com/svg.image?\inline \large a(t)" />
 the universal expansion factor (Hubble expansion is uniform throughout the Universe), the location of an object in physical coordinates, 
-<img style="position:relative;top:3.7px;" src="https://latex.codecogs.com/svg.image?\inline&space;\boldsymbol{r}" title="https://latex.codecogs.com/svg.image?\inline \boldsymbol{r}" />
+<img src="https://latex.codecogs.com/svg.image?\inline&space;\boldsymbol{r}" title="https://latex.codecogs.com/svg.image?\inline \boldsymbol{r}" />
 can be written as:
 <img style="position:relative;top:3.7px;" src="https://latex.codecogs.com/svg.image?\inline&space;\large&space;\boldsymbol{r}(t)&space;=&space;a(t)\boldsymbol{x}" title="https://latex.codecogs.com/svg.image?\inline \large \boldsymbol{r}(t) = a(t)\boldsymbol{x}" />
 where we have chosen the dimensionless expansioin factor, 
-<img style="position:relative;top:3.7px;" src="https://latex.codecogs.com/svg.image?\inline&space;\boldsymbol{r}" title="https://latex.codecogs.com/svg.image?\inline \boldsymbol{r}" />
-such that <img style="position: relative; top: 3.7px;" src="https://latex.codecogs.com/svg.image?\inline&space;a(t_0)&space;=&space;a_0&space;=&space;1" title="https://latex.codecogs.com/svg.image?\inline a(t_0) = a_0 = 1" />
+<img src="https://latex.codecogs.com/svg.image?\inline&space;\boldsymbol{r}" title="https://latex.codecogs.com/svg.image?\inline \boldsymbol{r}" />
+such that 
+<img style="position:relative;top:3.7px;" src="https://latex.codecogs.com/svg.image?a(t&space;=&space;0)&space;=&space;a(t_0)&space;=&space;1" title="https://latex.codecogs.com/svg.image?a(t = 0) = a(t_0) = 1" />
 for the present cosmic epoch and by definition 
 <img style="position:relative;top:3.7px;" src="https://latex.codecogs.com/svg.image?\inline&space;\large&space;a(t&space;=&space;0)&space;=&space;0" title="https://latex.codecogs.com/svg.image?\inline \large a(t = 0) = 0" ></img>
 at the very time of the Big Bang itself. **comoving position** 
-<img style="position:relative;top:3.7px;" src="https://latex.codecogs.com/svg.image?\inline&space;\large&space;\textbf{x}" title="https://latex.codecogs.com/svg.image?\inline \large \textbf{x}" /> 
+<img src="https://latex.codecogs.com/svg.image?\inline&space;\large&space;\textbf{x}" title="https://latex.codecogs.com/svg.image?\inline \large \textbf{x}" /> 
+in a [Friedmann–Lemaître–Robertson–Walker](http://www.personal.psu.edu/duj13/ASTRO545/notes/ch2-FRWuniverse.pdf) (FRW) Universe (a Homogeneous and Isotropic Expanding Universe) 
+remains fixed as if it's attached to the backgroud (and will change correspondingly to gravitational perturbations), <img src="https://latex.codecogs.com/svg.image?\inline&space;\boldsymbol{r}" title="https://latex.codecogs.com/svg.image?\inline \boldsymbol{r}" />
+of an object will change both due to evolving <img style="position:relative;top:3.7px;" src="https://latex.codecogs.com/svg.image?\inline&space;a(t)" title="https://latex.codecogs.com/svg.image?\inline a(t)" />
+and time dependent comoving coordinate <img style="position:relative;top:3.7px;" src="https://latex.codecogs.com/svg.image?\inline&space;\textbf{x}(t)" title="https://latex.codecogs.com/svg.image?\inline \textbf{x}(t)" />.
+
+In an unperturbed Universe the density of the background has the same value throughout the Universe, <img src="https://latex.codecogs.com/svg.image?\inline&space;\rho(\boldsymbol{r},&space;t)&space;=&space;\rho_u(t)" title="https://latex.codecogs.com/svg.image?\inline \rho(\boldsymbol{r}, t) = \rho_u(t)" />.
+The density perturbation at a comoving location <img src="https://latex.codecogs.com/svg.image?\inline&space;\textbf{x}" title="https://latex.codecogs.com/svg.image?\inline \textbf{x}" /> is:
+
+<p align: "center">
+<img src="https://latex.codecogs.com/svg.image?\delta(\textbf{x},&space;t)&space;=&space;\frac{\rho(\textbf{x},&space;t)&space;-&space;\rho_u(t)}{\rho_u(t)}" title="https://latex.codecogs.com/svg.image?\delta(\textbf{x}, t) = \frac{\rho(\textbf{x}, t) - \rho_u(t)}{\rho_u(t)}" />
+</p>
+
+
 
 
 Persumably Dark Matter doesn't interact with photon (hence dark) and electromagnetism plays no role in it's dynamics, so on the large scale gravitation 
