@@ -18,7 +18,9 @@ can be written as:
 </p>
 where we have chosen the dimensionless expansioin factor, 
 <img style="position: relative; top: 3.7px;" src="https://latex.codecogs.com/svg.image?\inline&space;a(t)" title="https://latex.codecogs.com/svg.image?\inline a(t)" /> 
-
+such that 
+<img style="position: relative; top: 3.7px;" src="https://latex.codecogs.com/svg.image?a(t_0)&space;=&space;a_0&space;=&space;1" title="https://latex.codecogs.com/svg.image?a(t_0) = a_0 = 1" />
+for the present cosmic epoch.[^1]
 
 Persumably Dark Matter doesn't interact with photon (hence dark) and electromagnetism plays no role in it's dynamics, so on the large scale gravitation 
 is the sole dyanmical force, which will assume is non-relativistic for simplicity (wouldn't apply for early universe beacuse of dominat relativistic radiation).
@@ -38,8 +40,7 @@ By defining
 
 ### Resources
 
-- [nbody2d](https://jhidding.github.io/nbody2d/)
-- [Comological Particle Mesh Simulations](https://github.com/grkooij/Cosmological-Particle-Mesh-Simulation)
-- [N-Body/Particle Simulation Methods](https://www.cs.cmu.edu/afs/cs/academic/class/15850c-s96/www/nbody.html)
-- [Linear Perturbation Theory](https://www.astro.rug.nl/~weygaert/tim1publication/lss2009/lss2009.linperturb.pdf)
-
+[^1]: [Linear Perturbation Theory](https://www.astro.rug.nl/~weygaert/tim1publication/lss2009/lss2009.linperturb.pdf)
+[^2]: [nbody2d](https://jhidding.github.io/nbody2d/)
+[^3]: [Comological Particle Mesh Simulations](https://github.com/grkooij/Cosmological-Particle-Mesh-Simulation)
+[^4]: [N-Body/Particle Simulation Methods](https://www.cs.cmu.edu/afs/cs/academic/class/15850c-s96/www/nbody.html)
