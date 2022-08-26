@@ -11,16 +11,16 @@ In an expanding Universe, its evolution is governed by the [Hubble expansion](ht
 If we take 
 <img style="position:relative;top:3.7px;" src="https://latex.codecogs.com/svg.image?\inline&space;\large&space;a(t)" title="https://latex.codecogs.com/svg.image?\inline \large a(t)" />
 the universal expansion factor (Hubble expansion is uniform throughout the Universe), the location of an object in physical coordinates, 
-<img src="https://latex.codecogs.com/svg.image?\inline&space;\boldsymbol{r}" title="https://latex.codecogs.com/svg.image?\inline \boldsymbol{r}" />
+<img style="position:relative;top:3.7px;" src="https://latex.codecogs.com/svg.image?\inline&space;\boldsymbol{r}" title="https://latex.codecogs.com/svg.image?\inline \boldsymbol{r}" />
 can be written as:
-<img src="https://latex.codecogs.com/svg.image?\inline&space;\large&space;\boldsymbol{r}(t)&space;=&space;a(t)\boldsymbol{x}" title="https://latex.codecogs.com/svg.image?\inline \large \boldsymbol{r}(t) = a(t)\boldsymbol{x}" />
+<img style="position:relative;top:3.7px;" src="https://latex.codecogs.com/svg.image?\inline&space;\large&space;\boldsymbol{r}(t)&space;=&space;a(t)\boldsymbol{x}" title="https://latex.codecogs.com/svg.image?\inline \large \boldsymbol{r}(t) = a(t)\boldsymbol{x}" />
 where we have chosen the dimensionless expansioin factor, 
-<img src="https://latex.codecogs.com/svg.image?\inline&space;\boldsymbol{r}" title="https://latex.codecogs.com/svg.image?\inline \boldsymbol{r}" />
+<img style="position:relative;top:3.7px;" src="https://latex.codecogs.com/svg.image?\inline&space;\boldsymbol{r}" title="https://latex.codecogs.com/svg.image?\inline \boldsymbol{r}" />
 such that <img style="position: relative; top: 3.7px;" src="https://latex.codecogs.com/svg.image?\inline&space;a(t_0)&space;=&space;a_0&space;=&space;1" title="https://latex.codecogs.com/svg.image?\inline a(t_0) = a_0 = 1" />
 for the present cosmic epoch and by definition 
-<img src="https://latex.codecogs.com/svg.image?\inline&space;\large&space;a(t&space;=&space;0)&space;=&space;0" title="https://latex.codecogs.com/svg.image?\inline \large a(t = 0) = 0" ></img>
+<img style="position:relative;top:3.7px;" src="https://latex.codecogs.com/svg.image?\inline&space;\large&space;a(t&space;=&space;0)&space;=&space;0" title="https://latex.codecogs.com/svg.image?\inline \large a(t = 0) = 0" ></img>
 at the very time of the Big Bang itself. **comoving position** 
-<img src="https://latex.codecogs.com/svg.image?\inline&space;\large&space;\textbf{x}" title="https://latex.codecogs.com/svg.image?\inline \large \textbf{x}" /> 
+<img style="position:relative;top:3.7px;" src="https://latex.codecogs.com/svg.image?\inline&space;\large&space;\textbf{x}" title="https://latex.codecogs.com/svg.image?\inline \large \textbf{x}" /> 
 
 
 Persumably Dark Matter doesn't interact with photon (hence dark) and electromagnetism plays no role in it's dynamics, so on the large scale gravitation 
@@ -31,6 +31,9 @@ Poisson equation governing the Newtonian gravity field:
 <p align="center">
 <img src="https://latex.codecogs.com/svg.image?\nabla^2\Phi&space;=&space;4\pi&space;G\rho" title="https://latex.codecogs.com/svg.image?\nabla^2\Phi = 4\pi G\rho" />
 </p>
+
+at the very time of the Big Bang itself. **comoving position** 
+<img style="position:relative;top:3.7px;" src="https://latex.codecogs.com/svg.image?\inline&space;\large&space;\textbf{x}" title="https://latex.codecogs.com/svg.image?\inline \large \textbf{x}" /> 
 
 where ![Latex \rho](https://latex.codecogs.com/svg.image?%5Cinline%20%5Crho) is the matter density and ![Latex \Phi](https://latex.codecogs.com/svg.image?%5Cinline%20%5CPhi) 
 is the gravitational potential.
