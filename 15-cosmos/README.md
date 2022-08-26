@@ -30,7 +30,7 @@ and time dependent comoving coordinate <img style="position:relative;top:3.7px;"
 In an unperturbed Universe the density of the background has the same value throughout the Universe, <img src="https://latex.codecogs.com/svg.image?\inline&space;\rho(\boldsymbol{r},&space;t)&space;=&space;\rho_u(t)" title="https://latex.codecogs.com/svg.image?\inline \rho(\boldsymbol{r}, t) = \rho_u(t)" />.
 The density perturbation at a comoving location <img src="https://latex.codecogs.com/svg.image?\inline&space;\textbf{x}" title="https://latex.codecogs.com/svg.image?\inline \textbf{x}" /> is:
 
-<p align: "center">
+<p align="center">
 <img src="https://latex.codecogs.com/svg.image?\delta(\textbf{x},&space;t)&space;=&space;\frac{\rho(\textbf{x},&space;t)&space;-&space;\rho_u(t)}{\rho_u(t)}" title="https://latex.codecogs.com/svg.image?\delta(\textbf{x}, t) = \frac{\rho(\textbf{x}, t) - \rho_u(t)}{\rho_u(t)}" />
 </p>
 
