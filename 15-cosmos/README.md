@@ -13,9 +13,7 @@ If we take
 the universal expansion factor (Hubble expansion is uniform throughout the Universe), the location of an object in physical coordinates, 
 <img src="https://latex.codecogs.com/svg.image?\inline&space;\boldsymbol{r}" title="https://latex.codecogs.com/svg.image?\inline \boldsymbol{r}" />
 can be written as:
-<p align="center">
 <img src="https://latex.codecogs.com/svg.image?\inline&space;\large&space;\boldsymbol{r}(t)&space;=&space;a(t)\boldsymbol{x}" title="https://latex.codecogs.com/svg.image?\inline \large \boldsymbol{r}(t) = a(t)\boldsymbol{x}" />
-</p>
 where we have chosen the dimensionless expansioin factor, 
 <img src="https://latex.codecogs.com/svg.image?\inline&space;\boldsymbol{r}" title="https://latex.codecogs.com/svg.image?\inline \boldsymbol{r}" />
 such that <img style="position: relative; top: 3.7px;" src="https://latex.codecogs.com/svg.image?\inline&space;a(t_0)&space;=&space;a_0&space;=&space;1" title="https://latex.codecogs.com/svg.image?\inline a(t_0) = a_0 = 1" />
