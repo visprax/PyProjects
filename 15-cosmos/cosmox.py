@@ -30,10 +30,13 @@ class Cosomology:
     def adot(self):
         """Time derivative of dimensionless expansion factor.
 
-        Friedmann equation: H^2 / H_0^2 = \Omega_Lambda + \Omega_M / a^3 + \Omega_k / a^2
+        Friedmann equation: $H^2 / H_0^2 = \Omega_Lambda + \Omega_M / a^3 + \Omega_k / a^2$
         
         Returns:
-            \dot{a}(float): Time derivate of dimensionless expansion factor.
+            $\dot{a}$(float): Time derivate of dimensionless expansion factor.
         """
         adot = self.H0 * a * math.sqrt(self.OmegaL + (self.OmegaM / a**3) + (self.OmegaK / a**2))
         return adot
+
+    def growing_mode(self, a):
+        pass
