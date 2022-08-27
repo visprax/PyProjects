@@ -45,6 +45,11 @@ The total velocity of an object, <img src="https://latex.codecogs.com/svg.image?
 
 We denote the gravitation field of density perturbation by 
 
+Total density parameter of the Universe has contributions from dimensionless matter density, curvature density, and Lambda density paramters:
+<p align="center">
+<img src="https://latex.codecogs.com/svg.image?\inline&space;\Omega_m&space;&plus;&space;\Omega_k&space;&plus;&space;\Omega_{\Lambda}&space;=&space;1" title="https://latex.codecogs.com/svg.image?\inline \Omega_m + \Omega_k + \Omega_{\Lambda} = 1" />
+</p>
+
 
 
 
