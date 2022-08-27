@@ -17,7 +17,7 @@ can be written as:
 where we have chosen the dimensionless expansioin factor, 
 <img src="https://latex.codecogs.com/svg.image?\inline&space;\boldsymbol{r}" title="https://latex.codecogs.com/svg.image?\inline \boldsymbol{r}" />
 such that 
-<img style="position:relative;top:3.7px;" src="https://latex.codecogs.com/svg.image?a(t&space;=&space;0)&space;=&space;a(t_0)&space;=&space;1" title="https://latex.codecogs.com/svg.image?a(t = 0) = a(t_0) = 1" />
+<img style="position:relative; top:4px;" src="https://latex.codecogs.com/svg.image?a(t&space;=&space;0)&space;=&space;a(t_0)&space;=&space;1" title="https://latex.codecogs.com/svg.image?a(t = 0) = a(t_0) = 1" />
 for the present cosmic epoch and by definition 
 <img style="position:relative;top:3.7px;" src="https://latex.codecogs.com/svg.image?\inline&space;\large&space;a(t&space;=&space;0)&space;=&space;0" title="https://latex.codecogs.com/svg.image?\inline \large a(t = 0) = 0" ></img>
 at the very time of the Big Bang itself. *comoving position*
@@ -40,10 +40,40 @@ In an unperturbed FRW Universe all matter is moving along with the Hubble expans
 
 The total velocity of an object, <img src="https://latex.codecogs.com/svg.image?\inline&space;\boldsymbol{u}" title="https://latex.codecogs.com/svg.image?\inline \boldsymbol{u}" />, is:
 <p align="center">
-<img src="https://latex.codecogs.com/svg.image?\inline&space;\boldsymbol{u}&space;=&space;\frac{d&space;\boldsymbol{r}}{dt}&space;=&space;\dot{a}\textbf{x}\&space;&plus;&space;\&space;a\dot{\textbf{x}}&space;=&space;\textbf{v}_H(\textbf{x},&space;t)\&space;&plus;&space;\&space;\textbf{v}(\textbf{x},&space;t)&space;=&space;\\&space;\textit{\&space;\&space;\&space;\&space;\&space;\&space;\&space;\&space;\&space;\&space;\&space;\&space;\&space;\&space;\&space;&space;\text{Hubble&space;velocity&space;}}&space;&plus;&space;\text{&space;\textit{peculiar&space;velocity}}" title="https://latex.codecogs.com/svg.image?\inline \boldsymbol{u} = \frac{d \boldsymbol{r}}{dt} = \dot{a}\textbf{x}\ + \ a\dot{\textbf{x}} = \textbf{v}_H(\textbf{x}, t)\ + \ \textbf{v}(\textbf{x}, t) = \\ \textit{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \text{Hubble velocity }} + \text{ \textit{peculiar velocity}}" />
+<img src="https://latex.codecogs.com/svg.image?\inline&space;\boldsymbol{u}&space;=&space;\frac{d&space;\boldsymbol{r}}{dt}&space;=&space;\dot{a}\textbf{x}\&space;&plus;&space;\&space;a\dot{\textbf{x}}&space;=&space;\textbf{v}_H(\textbf{x},&space;t)\&space;&plus;&space;\&space;\textbf{v}(\textbf{x},&space;t)&space;=&space;\\&space;\textit{\&space;\&space;\&space;\&space;\&space;\&space;\&space;\&space;\&space;\&space;\&space;\&space;\&space;\&space;\&space;&space;\text{Hubble&space;velocity&space;}}&space;&plus;&space;\text{&space;\textit{peculiar&space;velocity}}" title="https://latex.codecogs.com/svg.image?\inline \boldsymbol{u} = \frac{d \boldsymbol{r}}{dt} = \dot{a}\textbf{x}\ + \ a\dot{\textbf{x}} = \textbf{v}_H(\textbf{x}, t)\ + \ \textbf{v}(\textbf{x}, t) = \textit{\ \text{Hubble velocity }} + \text{ \textit{peculiar velocity}}" />
 <p>
 
-We denote the gravitation field of density perturbation by 
+We denote the location-dependent gravitational potential of density perturbations by <img src="https://latex.codecogs.com/svg.image?\inline&space;\Phi" title="https://latex.codecogs.com/svg.image?\inline \Phi" />. 
+It is related to density/energy fluctuations via the Poisson equation:
+<p align="center" width="10px">
+<img src="https://latex.codecogs.com/png.image?\inline&space;\tiny&space;\dpi{300}\nabla^2_r&space;\Phi&space;=&space;4\pi&space;G&space;\rho(\boldsymbol{r},&space;t)" title="https://latex.codecogs.com/png.image?\inline \tiny \dpi{300}\nabla^2_r \Phi = 4\pi G \rho(\boldsymbol{r}, t)" />
+</p>
+
+For a complete treatment we had to take into account the the contributions from the relativistic media of *radiation* and *Dark Energy* and we had to resort to a fully 
+general relativistic treatment of the problem. However for situations we're interested the radiation and Dark Energy fields are so weak that we a special relativistic 
+treatment will suffice, moreover in the *matter-dominated* epoch of the Universe, which is most relevant to structure formation, we may neglect the relativistic pressure 
+contributions because its contribution is considerably smaller than energy density of the Universe, <img />
+
+We split the potential <img /> to a background contribution <img /> and a potential perturbation component <img />. The background potential is:
+<p align="center">
+
+</p>
+
+By subtracting the background contribution from the above Poisson equation, we obtain the Poisson equation for the perturbed potential <img />:
+<p align="center">
+</p>
+
+The translation from *comoving Eulerian* to *comoving Lagrangian* formulation is done by:
+<p align="center">
+</p>
+
+From the Euler equation we obtain:
+<p align="center">
+</p>
+
+The potential perturbation <img /> is therfore given by:
+<p align="">
+</p>
 
 Total density parameter of the Universe has contributions from dimensionless matter density, curvature density, and Lambda density paramters:
 <p align="center">
