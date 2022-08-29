@@ -81,6 +81,14 @@ Total density parameter of the Universe has contributions from dimensionless mat
 </p>
 
 
+#### Perturbation Evolution Equation for Matter Perturbation
+
+By taking the divergence of the Euler equation, and taking advantage of the relation between the velocity divergence and 
+<img src="https://latex.codecogs.com/svg.image?\inline&space;\delta" title="https://latex.codecogs.com/svg.image?\inline \delta" />
+
+
+This is a test of Latex: $\sqrt{x}$
+
 
 
 

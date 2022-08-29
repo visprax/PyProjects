@@ -38,5 +38,5 @@ QUESTIONS:
 13. from multiprocessing import `shared_memory`, share variables across processes. [real python mmap](https://realpython.com/python-mmap/)
 14. use `exc_info=True` in logging, `logging.info("some exception occured", exc_info=True)` or use `logging.exception`
 15. something with `sqlalchemy`
-16. dataclasses
+16. [DONE] dataclasses
 17. update some expressions to walrus operator (:=)
