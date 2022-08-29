@@ -25,7 +25,10 @@ class Cosomology:
     @property
     def G(self):
         """Newtonian gravitational constant."""
-        pass
+        # TODO: whyyyyy?
+        G = 3/2 * self.OmegaM * self.H0**2
+        return G
+
     
     def adot(self):
         """Time derivative of dimensionless expansion factor.
