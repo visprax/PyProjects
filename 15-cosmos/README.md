@@ -89,6 +89,10 @@ By taking the divergence of the Euler equation, and taking advantage of the rela
 
 This is a test of Latex: $\sqrt{x}$
 
+#### TODO
+
+- wherever there is numpy convert it to C by hand.
+
 
 
 
