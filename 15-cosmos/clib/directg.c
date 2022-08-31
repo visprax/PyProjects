@@ -66,12 +66,17 @@ double* init_forces(size_t num_particles)
  * the vector pointing from particle i to j which is
  * the direction of the gravitational force. 
  */
-double* compute_forces(Particle* particles, double* forces, size_t num_particles)
+void compute_forces(Particle* particles, double* forces, size_t num_particles)
 {
     double G  = GRAVITATIONAL_CONSTANT;
     double Rs = SOFTENING_FACTOR;
 
     for (int i = 0; i < num_particles; i++)
+    {
+        forces[3 * i + 0] = 0.0;
+        forces[3 * i + 1] = 0.0;
+        forces[3 * i + 2] = 0.0;
+
         for (int j = 0; j < num_particles; j++)
         {
             double dx = particles[j].position[0] - particles[i].position[0];
@@ -92,24 +97,56 @@ double* compute_forces(Particle* particles, double* forces, size_t num_particles
             forces[3 * i + 1] += Fy;
             forces[3 * i + 2] += Fz;
         }
-
-    return forces;
+    }
 }
 
 void direct_nbody()
-{
-
-}
-
-int main()
 {
     size_t num_particles = NUM_PARTICLES;
 
     Particle* particles = init_particles(num_particles);
     double* forces = init_forces(num_particles);
 
-    printf("particle 1's mass: %f\n", particles[0].mass);
-    printf("particle 2's x: %f\n", particles[1].position[0]);
-    printf("particle 3's vy: %f\n", particles[2].velocity[1]);
-    printf("particle 4's fz: %f\n", forces[3 * 3 + 2]);
+    double t  = 0.0;
+    double dt = 1e-4;
+    int iter = 0;
+
+    while (t < 1.0)
+    {
+        compute_forces(particles, num_particles);
+
+        for (int i = 0; i < num_particles; i++)
+        {
+            Particle* particle = &particles[i];
+            double* force = &forces[3 * i];
+
+            particle->velocity[0] += 0.5 * (force[0] / particle->mass) * dt;
+            particle->velocity[1] += 0.5 * (force[1] / particle->mass) * dt;
+            particle->velocity[2] += 0.5 * (force[2] / particle->mass) * dt;
+
+            particle->position[0] += particle->velocity[0] * dt;
+            particle->position[1] += particle->velocity[1] * dt;
+            particle->position[2] += particle->velocity[2] * dt;
+
+            compute_forces(particles, num_particles);
+
+            particle->velocity[0] += 0.5 * (force[0] / particle->mass) * dt;
+            particle->velocity[1] += 0.5 * (force[1] / particle->mass) * dt;
+            particle->velocity[2] += 0.5 * (force[2] / particle->mass) * dt;
+        }
+
+        t += dt;
+        iter += 1;
+    }
+}
+
+int main()
+{
+
+    /*
+     *printf("particle 1's mass: %f\n", particles[0].mass);
+     *printf("particle 2's x: %f\n", particles[1].position[0]);
+     *printf("particle 3's vy: %f\n", particles[2].velocity[1]);
+     *printf("particle 4's fz: %f\n", forces[3 * 3 + 2]);
+     */
 }
