@@ -113,7 +113,7 @@ void direct_nbody()
 
     while (t < 1.0)
     {
-        compute_forces(particles, num_particles);
+        compute_forces(particles, forces, num_particles);
 
         for (int i = 0; i < num_particles; i++)
         {
@@ -128,7 +128,7 @@ void direct_nbody()
             particle->position[1] += particle->velocity[1] * dt;
             particle->position[2] += particle->velocity[2] * dt;
 
-            compute_forces(particles, num_particles);
+            compute_forces(particles, forces, num_particles);
 
             particle->velocity[0] += 0.5 * (force[0] / particle->mass) * dt;
             particle->velocity[1] += 0.5 * (force[1] / particle->mass) * dt;
@@ -137,7 +137,16 @@ void direct_nbody()
 
         t += dt;
         iter += 1;
+        printf("\riteration: %d, time: %f", iter, t);
+        fflush(stdout);
+
+        if (iter % 50 == 0)
+        {
+            printf("\nparticle 10 - x: %f, y: %f, z: %f", particles[10].position[0], particles[10].position[1], particles[10].position[2]);
+            printf("\nparticle 10 - vx: %f, vy: %f, vz: %f", particles[10].velocity[0], particles[10].velocity[1], particles[10].velocity[2]);
+        }
     }
+
 }
 
 int main()
@@ -149,4 +158,5 @@ int main()
      *printf("particle 3's vy: %f\n", particles[2].velocity[1]);
      *printf("particle 4's fz: %f\n", forces[3 * 3 + 2]);
      */
+    direct_nbody();
 }
