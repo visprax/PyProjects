@@ -1,45 +1,45 @@
-import math
-from dataclasses import dataclass
+import ctypes
+import pathlib
+import logging
 
-@dataclass
-class Cosomology:
-    H0: float
-    OmegaM: float
-    OmefaL: float
+logger = logging.getLogger("interface")
 
-    @property
-    def OmegaK(self):
-        """Dimensionless curvature density of the Universe.
-        
-        $\OmegaM + \OmegaL + \OmegaK = 1$,
-        $\Omega_M$ is matter density parameter and 
-        $\Omega_L$ is density paramter of Dark Energy.
-        
+libg_path = pathlib.Path("../libg/libg.so")
 
-        Returns:
-            OmegaK(float): Density paramter resulting from curvatur.
-        """
-        OmegaK = 1 - self.OmegaM - self.OmegaL
-        return OmegaK
+if not libg_path.exists():
+    logger.critical(f"shared object library not found at: {libg_path}")
+    raise SystemExit()
 
-    @property
-    def G(self):
-        """Newtonian gravitational constant."""
-        # TODO: whyyyyy?
-        G = 3/2 * self.OmegaM * self.H0**2
-        return G
+try:
+    libg = ctypes.cdll.LoadLibrary(libg_path)
+except:
+    logger.critical(f"couldn't load the library at: {libg_path}", exc_info=True)
+    raise SystemExit()
 
-    
-    def adot(self):
-        """Time derivative of dimensionless expansion factor.
+class Params(ctypes.Structure):
+    _fields_ = [("num_particles", ctypes.c_size_t),
+                ("gravitational_constant", ctypes.c_double),
+                ("softening_length", ctypes.c_double),
+                ("time_step", ctypes.c_double),
+                ("com_coords", ctypes.c_int)]
 
-        Friedmann equation: $H^2 / H_0^2 = \Omega_Lambda + \Omega_M / a^3 + \Omega_k / a^2$
-        
-        Returns:
-            $\dot{a}$(float): Time derivate of dimensionless expansion factor.
-        """
-        adot = self.H0 * a * math.sqrt(self.OmegaL + (self.OmegaM / a**3) + (self.OmegaK / a**2))
-        return adot
+    __init__(self, params):
+        self.N = params["num_particles"]
+        self.G = params["gravitational_constant"]
+        self.Rs = params["softening_length"]
+        self.dt = params["time_step"]
+        self.cm = params["com_coords"]
 
-    def growing_mode(self, a):
+class Particle(ctypes.Structure):
+    _fields = [("position", ctypes.c_double * 3),
+               ("velocity", ctypes.c_double * 3),
+               ("mass",     ctypes.c_double)]
+
+    __init__(self, position, velocity, mass):
         pass
+
+    def somethinf(self):
+        return libg.compute_forces()
+
+libg.compute_forces.argtypes = [ctypes.Structure]
+libg.compute_forces.restype  = ctypes.double_p
