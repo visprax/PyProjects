@@ -1,5 +1,5 @@
-#ifndef DIRECTG
-#define DIRECTG
+#ifndef LIBG
+#define LIBG
 
 #include <stdlib.h>
 
@@ -26,4 +26,4 @@ double kinetic_energy(Particle* particles, size_t num_particles);
 double potential_energy(Particle* particles, size_t num_particles);
 double momentum(Particle* particles, size_t num_particles);
 
-#endif // DIRECTG
+#endif // LIBG
