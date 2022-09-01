@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <math.h>
 
-#include "directg.h"
+#include "libg.h"
 
 /*
  * Initialize particles, set position in each direction in Cartesian 
@@ -234,9 +234,4 @@ void directg()
 
     free(forces);
     free(particles);
-}
-
-int main()
-{
-    directg();
 }
