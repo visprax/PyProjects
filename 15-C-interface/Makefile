@@ -1,5 +1,5 @@
 CC     := gcc
-CFLAGS := -O3 -g -Wall -fPIC 
+CFLAGS := -O3 -g -Wall -fPIC
 LFLAGS := -shared -lm
 
 DIR := lib
