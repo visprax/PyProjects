@@ -3,12 +3,15 @@
 
 #include <stdlib.h>
 
-#define NUM_PARTICLES 100
-#define GRAVITATIONAL_CONSTANT 1.0
-#define SOFTENING_LENGTH 0.05
-#define TIME_STEP 1e-4
-// set to 1 to use center of mass coordinates
-#define COM_COORDS 0
+typedef struct
+{
+    size_t num_particles;
+    double gravitational_constant;
+    double softening_length;
+    double time_step;
+    // set to 1 to use center of mass coordinate
+    int com_coords;
+} Params;
 
 typedef struct
 {
@@ -17,13 +20,13 @@ typedef struct
     double mass;
 } Particle;
 
-Particle* init_particles(size_t num_particles);
-double* init_forces(size_t num_particles);
-void compute_forces(Particle* particles, double* forces, size_t num_particles);
+Particle* init_particles(Params params);
+double* init_forces(Params params);
+void compute_forces(Particle* particles, double* forces, Params params);
 void directg();
 
-double kinetic_energy(Particle* particles, size_t num_particles);
-double potential_energy(Particle* particles, size_t num_particles);
-double momentum(Particle* particles, size_t num_particles);
+double kinetic_energy(Particle* particles, Params params);
+double potential_energy(Particle* particles, Params params);
+double momentum(Particle* particles, Params params);
 
 #endif // LIBG
