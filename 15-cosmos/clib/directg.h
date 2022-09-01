@@ -19,9 +19,11 @@ typedef struct
 
 Particle* init_particles(size_t num_particles);
 double* init_forces(size_t num_particles);
-double kinetic_energy(Particle* particles, size_t num_particles);
-double potential_energy(Particle* particles, size_t num_particles);
 void compute_forces(Particle* particles, double* forces, size_t num_particles);
 void directg();
+
+double kinetic_energy(Particle* particles, size_t num_particles);
+double potential_energy(Particle* particles, size_t num_particles);
+double momentum(Particle* particles, size_t num_particles);
 
 #endif // DIRECTG

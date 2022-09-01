@@ -89,6 +89,25 @@ double potential_energy(Particle* particles, size_t num_particles)
     return PE;
 }
 
+double momentum(Particle* particles, size_t num_particles)
+{
+    double Px = 0.0;
+    double Py = 0.0;
+    double Pz = 0.0;
+
+    for (int i = 0; i < num_particles; i++)
+    {
+        Px += particles[i].velocity[0] * particles[i].mass;
+        Py += particles[i].velocity[1] * particles[i].mass;
+        Pz += particles[i].velocity[2] * particles[i].mass;
+    }
+
+    double P2 = Px*Px + Py*Py + Pz*Pz;
+    double P  = pow(P2, 0.5);
+
+    return P;
+}
+
 /*
  * Calculate force on particle i due to particle j 
  * in each Cartesian coordinate axis, (x, y, z) is
@@ -202,11 +221,14 @@ void directg()
 
         if (iters % 10 == 0)
         {
-            double KE = kinetic_energy(particles, num_particles);
+            double KE = kinetic_energy  (particles, num_particles);
             double PE = potential_energy(particles, num_particles);
+            double P  = momentum        (particles, num_particles);
             fprintf(stdout, "\nKinetic Energy: %f", KE);
             fprintf(stdout, "\nPotential Energy: %f", PE);
             fprintf(stdout, "\nTotal Energy: %f", KE+PE);
+            fprintf(stdout, "\nMomentum: %f", P);
+            fprintf(stdout, "\n\n");
         }
     }
 
