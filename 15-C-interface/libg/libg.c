@@ -18,7 +18,7 @@ Particle* init_particles(size_t num_particles)
         exit(EXIT_FAILURE);
     }
 
-    for (int i = 0; i < num_particles; i++)
+    for (long i = 0; i < num_particles; i++)
     {
         particles[i].position[0] = (double) rand() / RAND_MAX  - 0.5;
         particles[i].position[1] = (double) rand() / RAND_MAX  - 0.5;
@@ -44,7 +44,7 @@ double* init_forces(size_t num_particles)
         exit(EXIT_FAILURE);
     }
 
-    for (int i = 0; i < 3 * num_particles; i++) forces[i] = 0.0;
+    for (long i = 0; i < 3 * num_particles; i++) forces[i] = 0.0;
 
     return forces;
 }
@@ -53,7 +53,7 @@ double kinetic_energy(Particle* particles, size_t num_particles)
 {
     double KE = 0.0;
 
-    for (int i = 0; i < num_particles; i++)
+    for (long i = 0; i < num_particles; i++)
     {
         double Vx = particles[i].velocity[0];
         double Vy = particles[i].velocity[1];
@@ -72,8 +72,8 @@ double potential_energy(Particle* particles, size_t num_particles)
     double Rs = SOFTENING_LENGTH;
     double PE = 0.0;
 
-    for (int i = 0; i < num_particles - 1; i++)
-        for (int j = i + 1; j < num_particles; j++)
+    for (long i = 0; i < num_particles - 1; i++)
+        for (long j = i + 1; j < num_particles; j++)
         {
             double dx = particles[j].position[0] - particles[i].position[0];
             double dy = particles[j].position[1] - particles[i].position[1];
@@ -95,7 +95,7 @@ double momentum(Particle* particles, size_t num_particles)
     double Py = 0.0;
     double Pz = 0.0;
 
-    for (int i = 0; i < num_particles; i++)
+    for (long i = 0; i < num_particles; i++)
     {
         Px += particles[i].velocity[0] * particles[i].mass;
         Py += particles[i].velocity[1] * particles[i].mass;
@@ -119,13 +119,13 @@ void compute_forces(Particle* particles, double* forces, size_t num_particles)
     double G  = GRAVITATIONAL_CONSTANT;
     double Rs = SOFTENING_LENGTH;
 
-    for (int i = 0; i < num_particles; i++)
+    for (long i = 0; i < num_particles; i++)
     {
         forces[3 * i + 0] = 0.0;
         forces[3 * i + 1] = 0.0;
         forces[3 * i + 2] = 0.0;
 
-        for (int j = 0; j < num_particles; j++)
+        for (long j = 0; j < num_particles; j++)
             if ( j != i )
             {
                 double dx = particles[j].position[0] - particles[i].position[0];
@@ -158,18 +158,18 @@ void directg()
     if (COM_COORDS)
     {
         double tot_mass = 0.0;
-        for (int i = 0; i < num_particles; i++)
+        for (long i = 0; i < num_particles; i++)
         {
             tot_mass += particles[i].mass;
         }
         double mean_mass = tot_mass / num_particles;
 
-        for (int i = 0; i < num_particles; i++)
+        for (long i = 0; i < num_particles; i++)
         {
             double MVx = 0.0;
             double MVy = 0.0;
             double MVz = 0.0;
-            for(int j = 0; j < num_particles; j++)
+            for(long j = 0; j < num_particles; j++)
             {
                 MVx += particles[j].mass * particles[j].velocity[0];
                 MVy += particles[j].mass * particles[j].velocity[1];
@@ -193,7 +193,7 @@ void directg()
     {
         compute_forces(particles, forces, num_particles);
 
-        for (int i = 0; i < num_particles; i++)
+        for (long i = 0; i < num_particles; i++)
         {
             Particle* particle = &particles[i];
             double* force = &forces[3 * i];
