@@ -34,7 +34,6 @@ Particle* init_particles(size_t num_particles)
     return particles;
 }
 
-
 // Initialize forces for all particles in each directions to zero.
 double* init_forces(size_t num_particles)
 {
@@ -134,11 +133,6 @@ void compute_forces(Particle* particles, double* forces, size_t num_particles)
 void directg()
 {
     size_t num_particles = NUM_PARTICLES;
-
-    double t  = 0.0;
-    double dt = TIME_STEP;
-    int iter = 0;
-
     Particle* particles = init_particles(num_particles);
     double* forces = init_forces(num_particles);
 
@@ -172,21 +166,19 @@ void directg()
         }
     }
 
+    double dt = TIME_STEP;
+    double t  = 0.0;
+    int iters = 0;
+
     while (t < 1.0)
     {
         compute_forces(particles, forces, num_particles);
-
-        double KE = kinetic_energy(particles, num_particles);
-        double PE = potential_energy(particles, num_particles);
-        fprintf(stdout, "\nKinetic Energy: %f", KE);
-        fprintf(stdout, "\nPotential Energy: %f", PE);
-        fprintf(stdout, "\nTotal Energy: %f", KE+PE);
 
         for (int i = 0; i < num_particles; i++)
         {
             Particle* particle = &particles[i];
             double* force = &forces[3 * i];
-
+            
             // Half kick
             particle->velocity[0] += 0.5 * (force[0] / particle->mass) * dt;
             particle->velocity[1] += 0.5 * (force[1] / particle->mass) * dt;
@@ -198,16 +190,17 @@ void directg()
             particle->position[2] += particle->velocity[2] * dt;
 
             compute_forces(particles, forces, num_particles);
-
+            
+            // Half kick
             particle->velocity[0] += 0.5 * (force[0] / particle->mass) * dt;
             particle->velocity[1] += 0.5 * (force[1] / particle->mass) * dt;
             particle->velocity[2] += 0.5 * (force[2] / particle->mass) * dt;
         }
 
         t += dt;
-        iter += 1;
+        iters += 1;
 
-        if (iter % 10 == 0)
+        if (iters % 10 == 0)
         {
             double KE = kinetic_energy(particles, num_particles);
             double PE = potential_energy(particles, num_particles);
@@ -217,6 +210,8 @@ void directg()
         }
     }
 
+    free(forces);
+    free(particles);
 }
 
 int main()
