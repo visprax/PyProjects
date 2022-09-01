@@ -2,32 +2,23 @@
 #include <stdio.h>
 #include <math.h>
 
-#define NUM_PARTICLES 100
-#define GRAVITATIONAL_CONSTANT 1.0
-#define SOFTENING_FACTOR 0.05
-
-typedef struct 
-{
-    double position[3];
-    double velocity[3];
-    double mass;
-} Particle;
+#include "directg.h"
 
 /*
  * Initialize particles, set position in each direction in Cartesian 
  * coordinate to a random value less than 1, and set velocity of each
  * particle to zero in all directions.
  */
-Particle* init_particles(size_t size)
+Particle* init_particles(size_t num_particles)
 {
-    Particle* particles = malloc(size * sizeof(Particle));
+    Particle* particles = malloc(num_particles * sizeof(Particle));
     if (particles == NULL)
     {
         fprintf(stderr, "Error during allocating memory storage for particles.");
         exit(EXIT_FAILURE);
     }
 
-    for (int i = 0; i < size; i++)
+    for (int i = 0; i < num_particles; i++)
     {
         particles[i].position[0] = (double) rand() / RAND_MAX  - 0.5;
         particles[i].position[1] = (double) rand() / RAND_MAX  - 0.5;
@@ -69,7 +60,7 @@ double* init_forces(size_t num_particles)
 void compute_forces(Particle* particles, double* forces, size_t num_particles)
 {
     double G  = GRAVITATIONAL_CONSTANT;
-    double Rs = SOFTENING_FACTOR;
+    double Rs = SOFTENING_LENGTH;
 
     for (int i = 0; i < num_particles; i++)
     {
@@ -100,16 +91,16 @@ void compute_forces(Particle* particles, double* forces, size_t num_particles)
     }
 }
 
-void direct_nbody()
+void directg()
 {
     size_t num_particles = NUM_PARTICLES;
 
+    double t  = 0.0;
+    double dt = TIME_STEP;
+    int iter = 0;
+
     Particle* particles = init_particles(num_particles);
     double* forces = init_forces(num_particles);
-
-    double t  = 0.0;
-    double dt = 1e-4;
-    int iter = 0;
 
     while (t < 1.0)
     {
@@ -158,5 +149,5 @@ int main()
      *printf("particle 3's vy: %f\n", particles[2].velocity[1]);
      *printf("particle 4's fz: %f\n", forces[3 * 3 + 2]);
      */
-    direct_nbody();
+    directg();
 }
