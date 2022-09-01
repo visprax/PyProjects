@@ -9,8 +9,10 @@
  * coordinate to a random value less than 1, and set velocity of each
  * particle to zero in all directions.
  */
-Particle* init_particles(size_t num_particles)
+Particle* init_particles(Params params)
 {
+    size_t num_particles = params.num_particles;
+
     Particle* particles = malloc(num_particles * sizeof(Particle));
     if (particles == NULL)
     {
@@ -18,7 +20,7 @@ Particle* init_particles(size_t num_particles)
         exit(EXIT_FAILURE);
     }
 
-    for (long i = 0; i < num_particles; i++)
+    for (size_t i = 0; i < num_particles; i++)
     {
         particles[i].position[0] = (double) rand() / RAND_MAX  - 0.5;
         particles[i].position[1] = (double) rand() / RAND_MAX  - 0.5;
@@ -35,8 +37,10 @@ Particle* init_particles(size_t num_particles)
 }
 
 // Initialize forces for all particles in each directions to zero.
-double* init_forces(size_t num_particles)
+double* init_forces(Params params)
 {
+    size_t num_particles = params.num_particles;
+
     double* forces = malloc(3 * num_particles * sizeof(double));
     if (forces == NULL)
     {
@@ -44,16 +48,17 @@ double* init_forces(size_t num_particles)
         exit(EXIT_FAILURE);
     }
 
-    for (long i = 0; i < 3 * num_particles; i++) forces[i] = 0.0;
+    for (size_t i = 0; i < 3 * num_particles; i++) forces[i] = 0.0;
 
     return forces;
 }
 
-double kinetic_energy(Particle* particles, size_t num_particles)
+double kinetic_energy(Particle* particles, Params params)
 {
+    size_t num_particles = params.num_particles;
     double KE = 0.0;
 
-    for (long i = 0; i < num_particles; i++)
+    for (size_t i = 0; i < num_particles; i++)
     {
         double Vx = particles[i].velocity[0];
         double Vy = particles[i].velocity[1];
@@ -66,14 +71,15 @@ double kinetic_energy(Particle* particles, size_t num_particles)
     return KE;
 }
 
-double potential_energy(Particle* particles, size_t num_particles)
+double potential_energy(Particle* particles, Params params)
 {
-    double G  = GRAVITATIONAL_CONSTANT;
-    double Rs = SOFTENING_LENGTH;
-    double PE = 0.0;
+    double G  = params.gravitational_constant;
+    double Rs = params.softening_length;
+    size_t num_particles = params.num_particles;
 
-    for (long i = 0; i < num_particles - 1; i++)
-        for (long j = i + 1; j < num_particles; j++)
+    double PE = 0.0;
+    for (size_t i = 0; i < num_particles - 1; i++)
+        for (size_t j = i + 1; j < num_particles; j++)
         {
             double dx = particles[j].position[0] - particles[i].position[0];
             double dy = particles[j].position[1] - particles[i].position[1];
@@ -89,13 +95,14 @@ double potential_energy(Particle* particles, size_t num_particles)
     return PE;
 }
 
-double momentum(Particle* particles, size_t num_particles)
+double momentum(Particle* particles, Params params)
 {
+    size_t num_particles = params.num_particles;
+
     double Px = 0.0;
     double Py = 0.0;
     double Pz = 0.0;
-
-    for (long i = 0; i < num_particles; i++)
+    for (size_t i = 0; i < num_particles; i++)
     {
         Px += particles[i].velocity[0] * particles[i].mass;
         Py += particles[i].velocity[1] * particles[i].mass;
@@ -114,18 +121,19 @@ double momentum(Particle* particles, size_t num_particles)
  * the vector pointing from particle i to j which is
  * the direction of the gravitational force. 
  */
-void compute_forces(Particle* particles, double* forces, size_t num_particles)
+void compute_forces(Particle* particles, double* forces, Params params)
 {
-    double G  = GRAVITATIONAL_CONSTANT;
-    double Rs = SOFTENING_LENGTH;
+    double G  = params.gravitational_constant;
+    double Rs = params.softening_length;
+    size_t num_particles = params.num_particles;
 
-    for (long i = 0; i < num_particles; i++)
+    for (size_t i = 0; i < num_particles; i++)
     {
         forces[3 * i + 0] = 0.0;
         forces[3 * i + 1] = 0.0;
         forces[3 * i + 2] = 0.0;
 
-        for (long j = 0; j < num_particles; j++)
+        for (size_t j = 0; j < num_particles; j++)
             if ( j != i )
             {
                 double dx = particles[j].position[0] - particles[i].position[0];
@@ -149,27 +157,28 @@ void compute_forces(Particle* particles, double* forces, size_t num_particles)
     }
 }
 
-void directg()
+void directg(Params params)
 {
-    size_t num_particles = NUM_PARTICLES;
-    Particle* particles = init_particles(num_particles);
-    double* forces = init_forces(num_particles);
+    size_t num_particles = params.num_particles;
 
-    if (COM_COORDS)
+    Particle* particles = init_particles(params);
+    double* forces = init_forces(params);
+
+    if (params.com_coords)
     {
         double tot_mass = 0.0;
-        for (long i = 0; i < num_particles; i++)
+        for (size_t i = 0; i < num_particles; i++)
         {
             tot_mass += particles[i].mass;
         }
         double mean_mass = tot_mass / num_particles;
 
-        for (long i = 0; i < num_particles; i++)
+        for (size_t i = 0; i < num_particles; i++)
         {
             double MVx = 0.0;
             double MVy = 0.0;
             double MVz = 0.0;
-            for(long j = 0; j < num_particles; j++)
+            for(size_t j = 0; j < num_particles; j++)
             {
                 MVx += particles[j].mass * particles[j].velocity[0];
                 MVy += particles[j].mass * particles[j].velocity[1];
@@ -185,15 +194,15 @@ void directg()
         }
     }
 
-    double dt = TIME_STEP;
+    double dt = params.time_step;
     double t  = 0.0;
     int iters = 0;
 
     while (t < 1.0)
     {
-        compute_forces(particles, forces, num_particles);
+        compute_forces(particles, forces, params);
 
-        for (long i = 0; i < num_particles; i++)
+        for (size_t i = 0; i < num_particles; i++)
         {
             Particle* particle = &particles[i];
             double* force = &forces[3 * i];
@@ -208,7 +217,7 @@ void directg()
             particle->position[1] += particle->velocity[1] * dt;
             particle->position[2] += particle->velocity[2] * dt;
 
-            compute_forces(particles, forces, num_particles);
+            compute_forces(particles, forces, params);
             
             // Half kick
             particle->velocity[0] += 0.5 * (force[0] / particle->mass) * dt;
@@ -218,18 +227,6 @@ void directg()
 
         t += dt;
         iters += 1;
-
-        if (iters % 10 == 0)
-        {
-            double KE = kinetic_energy  (particles, num_particles);
-            double PE = potential_energy(particles, num_particles);
-            double P  = momentum        (particles, num_particles);
-            fprintf(stdout, "\nKinetic Energy: %f", KE);
-            fprintf(stdout, "\nPotential Energy: %f", PE);
-            fprintf(stdout, "\nTotal Energy: %f", KE+PE);
-            fprintf(stdout, "\nMomentum: %f", P);
-            fprintf(stdout, "\n\n");
-        }
     }
 
     free(forces);
