@@ -7,6 +7,8 @@
 #define GRAVITATIONAL_CONSTANT 1.0
 #define SOFTENING_LENGTH 0.05
 #define TIME_STEP 1e-4
+// set to 1 to use center of mass coordinates
+#define COM_COORDS 0
 
 typedef struct
 {
