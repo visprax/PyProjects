@@ -34,9 +34,8 @@ Particle* init_particles(size_t num_particles)
     return particles;
 }
 
-/*
- * Initialize forces for all particles in each directions to zero.
- */
+
+// Initialize forces for all particles in each directions to zero.
 double* init_forces(size_t num_particles)
 {
     double* forces = malloc(3 * num_particles * sizeof(double));
@@ -49,6 +48,46 @@ double* init_forces(size_t num_particles)
     for (int i = 0; i < 3 * num_particles; i++) forces[i] = 0.0;
 
     return forces;
+}
+
+double kinetic_energy(Particle* particles, size_t num_particles)
+{
+    double KE = 0.0;
+
+    for (int i = 0; i < num_particles; i++)
+    {
+        double Vx = particles[i].velocity[0];
+        double Vy = particles[i].velocity[1];
+        double Vz = particles[i].velocity[2];
+        double V2 = Vx*Vx + Vy*Vy + Vz*Vz;
+
+        KE += 0.5 * particles[i].mass * V2;
+    }
+
+    return KE;
+}
+
+double potential_energy(Particle* particles, size_t num_particles)
+{
+    double G  = GRAVITATIONAL_CONSTANT;
+    double Rs = SOFTENING_LENGTH;
+    double PE = 0.0;
+
+    for (int i = 0; i < num_particles - 1; i++)
+        for (int j = i + 1; j < num_particles; j++)
+        {
+            double dx = particles[j].position[0] - particles[i].position[0];
+            double dy = particles[j].position[1] - particles[i].position[1];
+            double dz = particles[j].position[2] - particles[i].position[2];
+
+            double R2 = dx*dx + dy*dy + dz*dz;
+            // 1 / R
+            double Ri = pow(R2 + Rs*Rs, -0.5);
+            
+            PE += -G * particles[i].mass * particles[j].mass * Ri;
+        }
+
+    return PE;
 }
 
 /*
@@ -75,8 +114,8 @@ void compute_forces(Particle* particles, double* forces, size_t num_particles)
             double dz = particles[j].position[1] - particles[i].position[2];
 
             double R2 = dx*dx + dy*dy + dz*dz;
-            /* 1 / (R2 + Rs)^(3/2) */
-            double Ri = pow(R2 + Rs, -1.5);
+            // 1 / (R2 + Rs)^(3/2)
+            double Ri = pow(R2 + Rs*Rs, -1.5);
 
             double M2 = particles[j].mass * particles[i].mass;
 
@@ -128,13 +167,14 @@ void directg()
 
         t += dt;
         iter += 1;
-        printf("\riteration: %d, time: %f", iter, t);
-        fflush(stdout);
 
-        if (iter % 50 == 0)
+        if (iter % 10 == 0)
         {
-            printf("\nparticle 10 - x: %f, y: %f, z: %f", particles[10].position[0], particles[10].position[1], particles[10].position[2]);
-            printf("\nparticle 10 - vx: %f, vy: %f, vz: %f", particles[10].velocity[0], particles[10].velocity[1], particles[10].velocity[2]);
+            double KE = kinetic_energy(particles, num_particles);
+            double PE = potential_energy(particles, num_particles);
+            fprintf(stdout, "\nKinetic Energy: %f", KE);
+            fprintf(stdout, "\nPotential Energy: %f", PE);
+            fprintf(stdout, "\nTotal Energy: %f", KE+PE);
         }
     }
 
@@ -142,12 +182,5 @@ void directg()
 
 int main()
 {
-
-    /*
-     *printf("particle 1's mass: %f\n", particles[0].mass);
-     *printf("particle 2's x: %f\n", particles[1].position[0]);
-     *printf("particle 3's vy: %f\n", particles[2].velocity[1]);
-     *printf("particle 4's fz: %f\n", forces[3 * 3 + 2]);
-     */
     directg();
 }
