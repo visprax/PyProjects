@@ -22,11 +22,12 @@ typedef struct
 
 Particle* init_particles(Params params);
 double* init_forces(Params params);
-void compute_forces(Particle* particles, double* forces, Params params);
-void directg();
 
 double kinetic_energy(Particle* particles, Params params);
 double potential_energy(Particle* particles, Params params);
 double momentum(Particle* particles, Params params);
+
+void compute_forces(Particle* particles, double* forces, Params params);
+void direct_nbody();
 
 #endif // LIBG
