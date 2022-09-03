@@ -17,6 +17,7 @@ except:
     raise SystemExit()
 
 class Params(ctypes.Structure):
+    """class to match C library Params struct."""
     _fields_ = [("num_particles", ctypes.c_size_t),
                 ("gravitational_constant", ctypes.c_double),
                 ("softening_length", ctypes.c_double),
@@ -24,22 +25,21 @@ class Params(ctypes.Structure):
                 ("com_coords", ctypes.c_int)]
 
     __init__(self, params):
-        self.N = params["num_particles"]
-        self.G = params["gravitational_constant"]
+        self.N  = params["num_particles"]
+        self.G  = params["gravitational_constant"]
         self.Rs = params["softening_length"]
         self.dt = params["time_step"]
         self.cm = params["com_coords"]
 
 class Particle(ctypes.Structure):
-    _fields = [("position", ctypes.c_double * 3),
+    """class to match C library Particle struct."""
+    _fields_ = [("position", ctypes.c_double * 3),
                ("velocity", ctypes.c_double * 3),
                ("mass",     ctypes.c_double)]
 
-    __init__(self, position, velocity, mass):
-        pass
 
-    def somethinf(self):
-        return libg.compute_forces()
+class Solver:
+    def __init__(self, )
 
 libg.compute_forces.argtypes = [ctypes.Structure]
 libg.compute_forces.restype  = ctypes.double_p
