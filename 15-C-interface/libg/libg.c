@@ -157,6 +157,10 @@ void compute_forces(Particle* particles, double* forces, Params params)
     }
 }
 
+/*
+ * Solve gravitational nbody problem using 
+ * Leap-frog (kick-drift-kick) integration method. 
+ */
 void directg(Params params)
 {
     size_t N = params.num_particles;
