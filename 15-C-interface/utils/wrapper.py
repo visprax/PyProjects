@@ -2,11 +2,10 @@ import ctypes
 import pathlib
 import logging
 
-# logger = logging.getLogger("interface")
+logger = logging.getLogger("interface")
 
 class Params(ctypes.Structure):
     """Class to match C library Params struct."""
-    
     _fields_ = [("num_particles", ctypes.c_size_t),
                 ("gravitational_constant", ctypes.c_double),
                 ("softening_length", ctypes.c_double),
@@ -30,7 +29,6 @@ class Params(ctypes.Structure):
 
 class Particle(ctypes.Structure):
     """Class to match C library Particle struct."""
-    
     _fields_ = [("position", ctypes.c_double * 3),
                ("velocity", ctypes.c_double * 3),
                ("mass",     ctypes.c_double)]
@@ -50,13 +48,14 @@ class Particle(ctypes.Structure):
 
 class Solver:
     """Class that wraps the library functions."""
-    
     _libg_path = "../libg/libg.so"
     
     def __init__(self, params):
         # TODO: checks for params
         self.params  = params
         self.libg = self.load_library()
+        
+        self.init_particles = self._init_particles()
     
     @classmethod
     def load_library(cls, path=None):
@@ -96,19 +95,51 @@ class Solver:
         func.restype  = restype
         return func
 
-    def init_particles(self):
+    def _init_particles(self):
         argtypes = [Params]
-        restype  = [ctypes.POINTER(Particle)]
-        init_particles = self.wrap_function(init_particles, )
+        restype  = ctypes.POINTER(Particle)
+        return self.wrap_function("init_particles", argtypes, restype)
 
+    def _init_forces(self):
+        argtypes = [Params]
+        restype  = ctypes.POINTER(c_double)
+        return self.wrap_function("init_forces", argtypes, restype)
+
+    def _kinetic_energy(self):
+        argtypes = [ctypes.POINTER(Particle), Params]
+        restype  = ctypes.c_double
+        return self.wrap_function("kinetic_energy", argtypes, restype)
+
+    def _potential_energy(self):
+        argtypes = [ctypes.POINTER(Particle), Params]
+        restype  = ctypes.c_double
+        return self.wrap_function("potential_energy", argtypes, restype)
+
+    def _momentum(self):
+        argtypes = [ctypes.POINTER(Particle), Params]
+        restype  = ctypes.c_double
+        return self.wrap_function("momentum", argtypes, restype)
+
+    def _compute_forces(self):
+        argtypes = [ctypes.POINTER(Particle), ctypes.POINTER(c_double), Params]
+        restype  = None
+        return self.wrap_function("compute_forces", argtypes, restype)
+
+    def _direct_nbody(self):
+        argtypes = None
+        restype  = None
+        return self.wrap_function("direct_nbody", argtypes, restype)
 
 if __name__ == "__main__":
     logging.basicConfig(format='%(asctime)s  %(name)s  %(levelname)s: %(message)s')
-    logger = logging.getLogger("wrapper")
     logger.setLevel(logging.DEBUG)
     
     solver = Solver(1)
     solver.load_library("sdcdc.so")
     # solver.libg = Solver.load_library("../libg/libg.so")
     # solver.libg = Solver.load_library()
-    print(solver.libg)
+    # print(solver.libg)
+
+    # num = solver.test_int()
+    # print(solver.test_int(10))
+    # print(solver._test_int())
