@@ -27,8 +27,8 @@ QUESTIONS:
 2. get input from user at the same time when you are printing something to stdout.
 3. functools (caching, ...)
 4. concurrent.future (higher level than threading and multiprocessing) -> ThreadPoolExecuter, ProcessPoolExecuter
-5. @classmethods, @staticmethod[DONE]
-6. special classmethods (__len__ -> len(instance), __next__)[github](https://github.com/CoreyMSchafer/code_snippets/blob/master/Object-Oriented/5-SpecialMethods/oop_test.py)
+5. [DONE] @classmethods, @staticmethod
+6. [DONE] special classmethods (__len__ -> len(instance), __next__)[github](https://github.com/CoreyMSchafer/code_snippets/blob/master/Object-Oriented/5-SpecialMethods/oop_test.py)
 7. @contexmanager (contextlib) [github](https://github.com/CoreyMSchafer/code_snippets/blob/master/Python-Context-Managers/cm_demo.py)
 8. [DONE] sqlite example -> OAuth: [blog](https://robertheaton.com/2019/08/12/programming-projects-for-advanced-beginners-user-logins/)
 9. [DONE] sending an email (email lib) as a notification.
@@ -36,7 +36,7 @@ QUESTIONS:
 11. itertools examples (groupby, tee, ...)
 12. resources module (memory usage, ...)
 13. from multiprocessing import `shared_memory`, share variables across processes. [real python mmap](https://realpython.com/python-mmap/)
-14. use `exc_info=True` in logging, `logging.info("some exception occured", exc_info=True)` or use `logging.exception`
+14. [DONE] use `exc_info=True` in logging, `logging.info("some exception occured", exc_info=True)` or use `logging.exception`
 15. something with `sqlalchemy`
 16. [DONE] dataclasses
 17. update some expressions to walrus operator (:=)
