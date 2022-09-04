@@ -82,8 +82,12 @@ def loop():
             callback = event_key.data
             callback()
 ```
+Note that here we don't have a traditional parallelism, and it's certainly not a multithreaded application, 
+but it does overlapping I/O. Here we have an I/O-bound problem, and usually a multithreaded application would 
+be write for these problems, though we chose not use threads because of the expensive overhead of threads at 
+scale, as explained in the introduction. For applications with many slow or sleepy connections with infrequent 
+events, asynchronous I/O is a right solution.
 
 
 
-### Resources:
 [^1]: This project is partly influenced from: [aosabook/500lines](https://github.com/aosabook/500lines/tree/master/crawler)
