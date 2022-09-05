@@ -3,7 +3,6 @@
 """A simple server with blocking sockets.
     The server responds with the reversed text a client sends."""
 
-import time
 import socket
 
 def server():
