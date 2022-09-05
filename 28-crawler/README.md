@@ -4,6 +4,35 @@ This is a web crawler with `asyncio` coroutines [^1]. As opposed to traditional 
 running an algorithm as fast as possible, optimizing a network program involvs efficiently waiting 
 for infreqent network events over slow connections, this is where `asynchronous I/O` comes into play.
 
+There are two main ways to perform I/O operations, such as reading or writing from a file or a network socket [^2].\
+The first one is known as *blocking I/O*. When you're performing I/O, the current application thread is going 
+to block the control flow until operating system can tell you it's done, this can be a performance bottleneck:
+
+```Python
+import socket
+
+# By default sockets are open in blocking mode.
+sock = socket.socket()
+request = b"HEAD / HTTP/1.0\r\nHost: github.com\r\n\r\n"
+
+# `connect` will block until a successful TCP 
+# connection is made to the host on the port.
+sock.connect(("github.com", 80))
+
+# `sendall` will repeatedly call `send` until all the data in 
+# `request` is sent to the host, it blocks until the data is sent.
+sock.sendall(request)
+
+# `recv` will try to receive up to 1024 bytes from the host, and block 
+# until there all data is received or the host closes the connection.
+response = sock.recv(1024)
+
+# Finally, after all the blocking calls, we have received all the data,
+# which are the headers from making a HTTP request to the host.
+print(response.decode())
+
+```
+
 An example from a [PyCon talk](https://youtu.be/iG6fr81xHKA?t=4m29s) to understand the idea behind async I/O:
 
 > Chess master Judit Polgár hosts a chess exhibition in which she plays multiple amateur players. 
@@ -106,5 +135,11 @@ scale, as explained in the introduction. For applications with many slow or slee
 events, asynchronous I/O is a right solution.
 
 
+#### Resources
+
+- An excellent article on *asyncio* by Lonami: [asyncio](https://lonami.dev/blog/asyncio/)
+
 
 [^1]: This project is partly influenced from: [aosabook/500lines](https://github.com/aosabook/500lines/tree/master/crawler)
+[^2]: Lonami's article on asyncio: [asyncio](https://lonami.dev/blog/asyncio/)
+
