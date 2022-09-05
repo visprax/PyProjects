@@ -103,6 +103,13 @@ finish method with request2
 all methods are finished, asynchronous run completed
 ```
 
+To tell the `asyncio` to run the two methods shown above, we can use `asyncio.ensure_future`,
+which is a way of saying to ensure the future of the methods, that you want the event loop 
+to run them as soon as it's free to do so. This method returns a `Future` object, that represents 
+an object that will be there, but might not be there yet. We can `await` these `Future`'s just like 
+we can `await` the `async def` functions, which are also called **coroutines**.
+
+
 An example from a [PyCon talk](https://youtu.be/iG6fr81xHKA?t=4m29s) to understand the idea behind async I/O:
 
 > Chess master Judit Polgár hosts a chess exhibition in which she plays multiple amateur players. 
