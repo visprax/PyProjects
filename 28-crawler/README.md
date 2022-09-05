@@ -2,7 +2,7 @@
 
 This is a web crawler with `asyncio` coroutines [^1]. As opposed to traditional optimization problem of 
 running an algorithm as fast as possible, optimizing a network program involvs efficiently waiting 
-for infreqent network events over slow connections, this is where `asynchronous I/O` comes into play.
+for infreqent network events over slow connections, this is where **asynchronous I/O** comes into play.
 
 There are two main ways to perform I/O operations, such as reading or writing from a file or a network socket [^2].\
 The first one is known as *blocking I/O*. When you're performing I/O, the current application thread is going 
@@ -30,7 +30,77 @@ response = sock.recv(1024)
 # Finally, after all the blocking calls, we have received all the data,
 # which are the headers from making a HTTP request to the host.
 print(response.decode())
+```
 
+Blocking I/O has a timeout that after if the operation is not finished, it will give back the control.
+Suppose that we can make the timeout smaller and smaller, if sufficiently small, the call will never be
+blocking, that's how the asynchronous I/O works. If the I/O device needs a while to respond with proper 
+data, the OS responds with "not ready", and the application gets control again, the application can check
+repeatedly to see if the OS is ready to give the necessary data, but in reality the application can tell 
+the OS to notify when it's ready, as opposed to *polling* (constantly asking the OS whether the data is 
+ready yet or not).
+
+`asyncio`'s *event loop* is responsible for handling those I/O events. (e.g. file is ready, data arrived, 
+flushing is done, ...), event loop can decide to continue with the application while a server is trying to 
+send a respond to a previous non-blocking request, whenever the data arrived, it can continue with the part
+of the application that deals with that data, the `await` keyword is used to tell the event loop that at this 
+point in the application, we can continue on without blocking the control flow.\
+Consider this pseudo-code for the order of executing a method asynchronously:
+
+```
+async def method(request):
+    prepare request
+    
+    await send request
+
+    await receive response
+
+    process response
+    return result
+
+run asynchronously(method(request1), method(request2))
+```
+
+This is an example of what the event loop for the above pseudo-code can look like:
+
+```
+no events pending, advance
+enter method with request1
+    prepare request1
+    await sending request1
+pause method with request1
+enter method with request2
+    prepare request2
+    await sending request2
+pause method with request2
+
+all current non-finished methods have been puased, can't advance, wait for events
+
+event for request2 arrives (sending request2 completed)
+enter method with request2
+    await receiving response2
+pause method with request2
+
+event for request1 arrives (sending request1 completed)
+enter method with request1
+    await receiving response1
+pause method with request1
+
+event for response1 arrives (receiving response1 completed)
+enter method with request1
+    process response1
+    return result1
+finish method with request1
+
+all current non-finished methods have been paused, can't advance, wait for events
+
+event for response2 arrives (receiving response2 completed)
+enter method with request2
+    process response2
+    return result2
+finish method with request2
+
+all methods are finished, asynchronous run completed
 ```
 
 An example from a [PyCon talk](https://youtu.be/iG6fr81xHKA?t=4m29s) to understand the idea behind async I/O:
