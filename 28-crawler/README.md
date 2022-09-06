@@ -4,6 +4,7 @@ This is a web crawler with `asyncio` coroutines [^1]. As opposed to traditional 
 running an algorithm as fast as possible, optimizing a network program involvs efficiently waiting 
 for infreqent network events over slow connections, this is where **asynchronous I/O** comes into play.
 
+### Asynchronous programming
 There are two main ways to perform I/O operations, such as reading or writing from a file or a network socket [^2].\
 The first one is known as *blocking I/O*. When you're performing I/O, the current application thread is going 
 to block the control flow until operating system can tell you it's done, this can be a performance bottleneck:
@@ -109,7 +110,125 @@ to run them as soon as it's free to do so. This method returns a `Future` object
 an object that will be there, but might not be there yet. We can `await` these `Future`'s just like 
 we can `await` the `async def` functions, which are also called **coroutines**.
 
+Note that there is a subtle difference between a non-blocking call and an asynchronous one, 
+a non-blocking call returns immediately, with whatever data are available, either the full number 
+of bytes requested, fewer, or none at all. An asynchronous call requests a transfer that will be 
+performed in its entirety, but will complete at some future time.
 
+#### Awaitables, Tasks and Futures
+
+Note that, if we have an example coroutine such as `async def example_coroutine(a, b)`, as opposed 
+to normal functions, when we invoke the coroutine like `r = example_coroutine(1, 2)`, the control 
+flow won't go inside the coroutine definition, and it will immediately return with a `Coroutine`
+object. To actually make the code block to run we have to use the facilities the `asyncio` module 
+provides, such as `await` keyword, or `asyncio.gather` function.
+
+`await` keyword can only be used inside a coroutine definition, it is used usually in expressions 
+such as `r = await C`, it takes a single parameter and whenever event loop sees it fit, it will 
+return a value and will be assigned to r.
+
+We say a coroutine object is *awaitable*, meaning that it can be used in an `await` statement. Many 
+asyncio APIs are designed to accept awaitables. Apart from coroutines, there are two other main types 
+of awaitable objects: **Tasks**, and **Futures**. Also if an object defines the special method `__await__`, 
+it can be awaited upon, in which case the behaviour is defined by the method definition.
+
+*Tasks* are used to schedule coroutines *concurrently*. When a coroutine is wrapped into a Task with 
+functions like `asyncio.create_task()` the coroutine is autamtically scheduled to run as soon as possible:
+
+```Python
+import asyncio
+
+async def simple():
+    return 10
+
+async def main():
+    # schedule to run `simple()` concurrently with `main()`
+    task = asyncio.create_task(simple())
+    
+    # task can be used now to awaited until it's complete or 
+    # it can be used to cancel `simple()`
+    await task
+
+asyncio.run(main())
+```
+
+Each event loop contains a number of tasks, and every coroutine that is executing is doing so inside a task.
+The `create_task` functions takes a coroutine object and returns a `Task` object, which inherits from `asyncio.Future`.
+The call creates the task inside the event loop of the current thread, and starts the task by executing from the begining 
+of the coroutine code-block. The returned future will be marked `done` only when the task has finished execution. 
+Creating a task is a synchronous call, it can be done anywhere, inside a synchronous or asynchronous code, however 
+if it's created inside an async code, the event loop is already there, and when it gets the next opportunity, it 
+might make the new task active.
+
+Note that due to the asynchronous code execution model, the traditional multithreaded code problems of data races where 
+different threads alter the same variable are severly reduced in async code (but not entirely eliminated), in particular 
+all the synchronous code that perform operations on a data shared between tasks on the same event loop, can be considered 
+*atomic* operations.\
+Consider this example:
+
+```Python
+import asyncio
+
+# Global values list
+vals = []
+
+async def get_from_io():
+    # Some I/O heavy code that returns a list of values
+    pass
+
+async def fetch():
+    while True:
+        io_vals = await get_from_io()
+        for val in io_vals:
+            vals.append(val)
+
+async def monitor():
+    while True:
+        print(len(vals))
+        await asyncio.sleep(1)
+
+async def main():
+    task1 = asyncio.create_task(fetch())
+    task2 = asyncio.create_task(monitor())
+    # Note that instead of explicitely creating tasks, 
+    # we could have done `asyncio.gather(fetch(), monitor())`
+    await asyncio.gather(task1, task2)
+
+asyncio.run(main())
+```
+
+Even though that the two tasks, `fetch` and `monitor` access global variable `vals`, they do so in two tasks 
+that are scheduled in the same event loop, for this reason the print statement in monitor coroutine will not 
+run unless fetch has appended val to vals an is inactive, and so there is no race condition between append and
+print statements.
+
+A *Future* object is another awaitable type. Unlike a coroutine object when a future is awaited it does not cause 
+a block of code to be executed. It represents an *eventual* result of an asynchronous operation. When a Future is 
+awaited following happens:
+
+ * If the process the future represents has finished and returned a value then the await statement immediately returns that value.
+ * If the process the future represents has finished and raised an exception then the await statement immediately raises that exception.
+ * If the process the future represents has not yet finished then the current Task is paused until the process has finished. Once finished 
+    it behaves as describe in above two cases.
+
+A Future object, `f` has following synchronous API in addition to being awaitable:
+ * `f.done()` returns `True` if the process has finished.
+ * `f.exception()` raise an `asyncio.InvalidStateError` exception if the process has not yet finished. If the process 
+    has finished it returns the exception it raised, or `None` if it terminated without raising.
+ * `f.result()` raise an `asyncio.InvalidStateError` exception if the process has not yet finished. If the process
+    has finished it raises the exception it raised, or returns the value it returned if it finished without raising.
+
+A Coroutine will not be executed until it is awaited. A Future represents something that is executing anyway, ans simply allows 
+to wait for it to finish, check if it has finished, or fetch the result if it has finished. A Future is a low-level awaitable, 
+and usually there is no need to explicitely create one, to create one:\
+ ```
+f = asyncio.get_running_loop().create_future()
+```
+
+
+
+
+---
 An example from a [PyCon talk](https://youtu.be/iG6fr81xHKA?t=4m29s) to understand the idea behind async I/O:
 
 > Chess master Judit Polgár hosts a chess exhibition in which she plays multiple amateur players. 
@@ -215,6 +334,7 @@ events, asynchronous I/O is a right solution.
 #### Resources
 
 - An excellent article on *asyncio* by Lonami: [asyncio](https://lonami.dev/blog/asyncio/)
+- Another good tutorial on Python *async* programming: [asyncio](https://bbc.github.io/cloudfit-public-docs/asyncio/asyncio-part-1)
 
 
 [^1]: This project is partly influenced from: [aosabook/500lines](https://github.com/aosabook/500lines/tree/master/crawler)
