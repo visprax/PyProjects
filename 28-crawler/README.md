@@ -123,9 +123,9 @@ flow won't go inside the coroutine definition, and it will immediately return wi
 object. To actually make the code block to run we have to use the facilities the `asyncio` module 
 provides, such as `await` keyword, or `asyncio.gather` function.
 
-`await` keyword can only be used inside a coroutine definition, it is used usually in expressions 
-such as `r = await C`, it takes a single parameter and whenever event loop sees it fit, it will 
-return a value and will be assigned to r.
+`await` keyword can only be used inside a coroutine definition (also `async for` and `async with`, more on them later), 
+it is usually used in expressions such as `r = await C`, it takes a single parameter and whenever 
+event loop sees it fit, it will return a value and will be assigned to r.
 
 We say a coroutine object is *awaitable*, meaning that it can be used in an `await` statement. Many 
 asyncio APIs are designed to accept awaitables. Apart from coroutines, there are two other main types 
@@ -224,6 +224,21 @@ and usually there is no need to explicitely create one, to create one:\
  ```
 f = asyncio.get_running_loop().create_future()
 ```
+
+`asyncio.run(coro)` is used to run coroutine *coro* and return the result. This function runs the passed coroutine, taking 
+care of managing the asyncio event loop. It will always start a new event loop, and it cannot be called when the event loop 
+is already running.
+
+There is a neat trick, if need arises and we want to interrupt the current task and *yield* the control back to the event loop 
+so that other tasks may run, apart from automatically yielding control by awaiting a future returned by some call, we can do:
+
+```Python
+# Specifying a count of zero seconds works to interrupt the current task if other 
+# tasks are pending, but otherwise doesn’t do anything since the sleep time is zero
+await asyncio.sleep(0)
+```
+
+
 
 
 
