@@ -15,7 +15,7 @@ def blocking_call(n):
 
 async def processes_for_blockers(exector):
     print("starting threaded blockers")
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
 
     print("creating exector tasks")
     blocking_tasks = [loop.run_in_executor(exector, blocking_call, i) for i in range(6)]
