@@ -404,7 +404,49 @@ if __name__ == "__main__":
     # yield of x: 32768 
 ```
 
+#### Mixing asynchronous code with Threads and Processes executors
 
+Asyncio is fundamentally a single-threaded library. Each event loop runs on a single thread, but this doesn't mean 
+that we can't have a thread or process pool executing parts of the program that are blocking and can't be async calls. 
+Asyncio provides `run_in_executor` API to run a task using an executor pool. `run_in_executor` takes an executor of 
+`concurrent.futures.Executor` instance and a function to be run, the default executor is used if `None` provided.\
+An example:
+
+```Python
+import asyncio
+import concurrent.futures
+
+def blocking_io():
+    # File operations (e.g. logging, reading) can block event loop,
+    # a thread pool can deal with blocking IO
+    with open("/dev/urandom", "rb") as f:
+        return f.read(100)
+
+def cpu_bound():
+    # A CPU-bound operation that will block the event loop,
+    # a process pool is preferred to run  CPU-bound operations
+    return sum(i * i for i in range(10**7))
+
+async def main():
+    loop = asyncio.get_running_loop()
+    
+    # A custom thread pool for IO-bound problem
+    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
+        result = await loop.run_in_executor(pool, blocking_io)
+        print(f"Result of `blocking_io` in custom thread pool: {result}")
+    
+    # A custom process pool for CPU-bound problem
+    with concurrent.futures.ProcessPoolExecutor(max_workers=4) as pool:
+        result = await loop.run_in_executor(pool, cpu_bound)
+        print(f"Result of `cpu_bound` in custom process pool: {result}")
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+
+The `run_in_executor` returns a future. The returned future will be marked as done, when the callable 
+has finished execution on it's thread. If its returned a value it will be stored in the future, or if 
+it raised an exception, that will be stored in the future as its exception.
 
 
 
@@ -432,83 +474,6 @@ operating systems have mechanisms to control the cap thread a process can create
 *Asynchronous I/O* platforms will perform concurrent operations on a single thread using *non-blocking*
 sockets. We set the sockets to non-blocking before connecting to the server:
 
-```Python
-s = socket.socket()
-s.setblocking(False)
-try:
-    s.connect(("github.com", 80))
-except BlockingIOError:
-    pass
-```
-
-due to the underlying C function behaviour of non-blocking socket, it will throw an exception to tell
-that it has begun, more details here: [Stack overflow question](https://stackoverflow.com/questions/11647046/non-blocking-socket-error-is-always)\
-We need a way to know when the connection is established to send the HTTP request, we can do it a tight loop, 
-but it's not an efficient way to await events on multiple sockets. The solution to this a `select` function 
-in C for Unix-like machines that waits for an event to occur on muliple non-blocking sockets. Each system 
-has its own replacements for it, like `epoll` on linux. Python's `selectors` module provides `DefaultSelector`
-that uses the best `select` counterpart on the underlying OS.\
-On may Manjaro machine:
-
-```Python
-from selectors import DefaultSelector
-
-selector = DefaultSelector()
-
-print(selector)
-```
-Output:
-
-`<selectors.EpollSelector object at 0x7fd1501a6830>`
-
-To register for notifications about network I/O, we create a non-blocking socket and register it with 
-the default selector:
-
-```Python
-import socket
-from selectors import DefaultSelector, EVENT_WRITE
-
-selector = DefaultSelector()
-
-s = socket.socket()
-s.setblocking(False)
-
-try:
-    s.connect(("github.com", 80))
-except BlockingIOError:
-    pass
-
-selector.register(s.fileno(), EVENT_WRITE, connected)
-
-def connected():
-    selector.unregister(s.fileno())
-    print("connected!")
-```
-
-We register the socket with its file descriptor, and to be notified when the socket is writable, 
-we pass a `EVERNT_WRITE` to wait for such an event, and we pass a callback function, `connected` 
-to run when such an event occurs.
-
-As the selector receives I/O notifications, we process them in a loop:
-
-```Python
-def loop():
-    while True:
-        # Here the call to select() pauses, awaiting the next
-        # I/O events. Then we run callbacks that are waiting for
-        # these events. Operations that have not completed remain
-        # pending until some future tick of the event loop.
-        events = selector.select()
-        for event_key, event_mask in events:
-            # event_key.data stores the `connected` callblack
-            callback = event_key.data
-            callback()
-```
-Note that here we don't have a traditional parallelism, and it's certainly not a multithreaded application, 
-but it does overlapping I/O. Here we have an I/O-bound problem, and usually a multithreaded application would 
-be write for these problems, though we chose not use threads because of the expensive overhead of threads at 
-scale, as explained in the introduction. For applications with many slow or sleepy connections with infrequent 
-events, asynchronous I/O is a right solution.
 
 
 #### Resources
