@@ -1,8 +1,8 @@
 ## Web Crawler 
 
 This is a web crawler with `asyncio` coroutines [^1]. As opposed to traditional optimization problem of 
-running an algorithm as fast as possible, optimizing a network program involvs efficiently waiting 
-for infreqent network events over slow connections, this is where **asynchronous I/O** comes into play.
+running an algorithm as fast as possible, optimizing a network program involves efficiently waiting 
+for infrequent network events over slow connections, this is where **asynchronous I/O** comes into play.
 
 ### Asynchronous programming
 There are two main ways to perform I/O operations, such as reading or writing from a file or a network socket [^2].\
@@ -41,7 +41,7 @@ repeatedly to see if the OS is ready to give the necessary data, but in reality 
 the OS to notify when it's ready, as opposed to *polling* (constantly asking the OS whether the data is 
 ready yet or not).
 
-`asyncio`'s *event loop* is responsible for handling those I/O events. (e.g. file is ready, data arrived, 
+`asyncio`'s *event loop* is responsible for handling those I/O events. (e.g. File is ready, data arrived, 
 flushing is done, ...), event loop can decide to continue with the application while a server is trying to 
 send a respond to a previous non-blocking request, whenever the data arrived, it can continue with the part
 of the application that deals with that data, the `await` keyword is used to tell the event loop that at this 
@@ -154,14 +154,14 @@ asyncio.run(main())
 
 Each event loop contains a number of tasks, and every coroutine that is executing is doing so inside a task.
 The `create_task` functions takes a coroutine object and returns a `Task` object, which inherits from `asyncio.Future`.
-The call creates the task inside the event loop of the current thread, and starts the task by executing from the begining 
+The call creates the task inside the event loop of the current thread, and starts the task by executing from the beginning 
 of the coroutine code-block. The returned future will be marked `done` only when the task has finished execution. 
 Creating a task is a synchronous call, it can be done anywhere, inside a synchronous or asynchronous code, however 
 if it's created inside an async code, the event loop is already there, and when it gets the next opportunity, it 
 might make the new task active.
 
-Note that due to the asynchronous code execution model, the traditional multithreaded code problems of data races where 
-different threads alter the same variable are severly reduced in async code (but not entirely eliminated), in particular 
+Note that due to the asynchronous code execution model, the traditional multi-threaded code problems of data races where 
+different threads alter the same variable are severely reduced in async code (but not entirely eliminated), in particular 
 all the synchronous code that perform operations on a data shared between tasks on the same event loop, can be considered 
 *atomic* operations.\
 Consider this example:
@@ -220,7 +220,7 @@ A Future object, `f` has following synchronous API in addition to being awaitabl
 
 A Coroutine will not be executed until it is awaited. A Future represents something that is executing anyway, ans simply allows 
 to wait for it to finish, check if it has finished, or fetch the result if it has finished. A Future is a low-level awaitable, 
-and usually there is no need to explicitely create one, to create one:\
+and usually there is no need to explicitly create one, to create one:\
  ```
 f = asyncio.get_running_loop().create_future()
 ```
@@ -238,12 +238,177 @@ so that other tasks may run, apart from automatically yielding control by awaiti
 await asyncio.sleep(0)
 ```
 
+#### Asynchronous context managers
+
+*Asynchronous context manager* is an extension of the synchronous context manager to work in an asynchronous environment.
+`async with` is used to initiate an async context manager.\
+A simple demonstration:
+
+```Python
+# Both FileProvider and fprovider.open_read return an async context manager
+async with FileProvider(path) as fprovider:
+    async with fprovider.open_read(config) as freader:
+        # freader.read is a coroutin that returns a list of some data
+        data = await freader.read(256)
+        # Do other things using freader
+    # Do some other things using fprovider
+# Do things with data 
+```
+Async context manager is essentially the same as synchronous context manager, with one major difference:
+ * The entry and exit from context manager is performed by awaiting asynchronous coroutines.
+
+We can define our own asynchronous context manager by creating classes which implement the special coroutine 
+methods:
+
+```Python
+# The return value could any object and it can be bound 
+# by any `as` clause in `async with` statement
+async def __aenter__(self):
+    pass
+
+# If the code block of `async with` reaches its end without any exceptions, `__aexit__` 
+# will be called with all three parameters as `None` and its return value will be ignored.
+# If it raises an exception, `__aexit__` will be called with the type of exception, 
+# the exception object itself, and a traceback associated with the exception, 
+# if it returns True, the system assumes the exception has been handled, and will not 
+# propagate, if it returns False, the exception will continue to propagate.
+async def __aexit__(self, exc_t, exc_v, exc_tb):
+    pass
+```
+
+This behaviour mirrors their synchronous special methods counterparts, `__enter__` and `__exit__`.
+
+#### Asynchronous iterators
+
+An async iterable represents a source of data which can be looped over with an `async for` loop:
+
+```Python
+# `reader.get_quotes` returns an asynchronous iterable object
+async for quote in reader.get_quotes():
+    # Do something with quote
+    pass
+```
+
+This is much like a normal for loop running over an iterable, the difference is that the method used 
+to extract the next element from the asynchronous iterator is an asynchronous coroutine method and its
+output is *awaited*.
+
+Much like `await` and `async with`, `async for` loop can only be used in a context where asynchronous code 
+is permitted (such as coroutines defined with `async def`).
+
+To implement a custom asynchronous iterator, it must define two special methods of `__aiter__` and `__anext__`:
+
+```Python
+# Note that `__aiter__` is not a coroutine method.
+# `__aiter__` must return `self`
+def __aiter__(self):
+    return self
+
+# This must return the next item in the 
+# iterator each time it is awaited.
+async def __anext__(self):
+    pass
+```
+
+#### Asynchronous generators
+
+An async generator can be used as a shorthand method for defining an async iterator. 
+For a coroutine to be considered an async generator, it must at some point `yield`.
+Note that an async generator is not a coroutine and it cannot be awaited:
+
+```Python
+async def coro():
+    return 3
+
+async def agen():
+    yield 3
+    yield 1
+
+# Ok
+r = await coro()
+
+# TypeError: object async_generator can't be used in 'await' expression
+r = await agen()
+```
+
+However the async generator object returned from the call is an async iterator, and can be used 
+in an `async for` loop:
+
+```Python
+async for r in agen():
+    # will print 3 and 1
+    print(r)
+```
+
+For an async generator `agen` the first time `agen.__anext__()` is awaited the execution will
+continue in the generator until it reaches the first `yield` statement (or the code block ends/returns),
+and the value passed to yield will be the value returned by the await. The subsequent time that `agen.__anext__()` 
+is awaited the code will continue running from where it left off last time until it gets to the next yield statement.
+If the execution reaches a `return` statement or the end of code block, this will cause the await of `agen.__anext__()`
+to raise `StopAsyncIteration`, which will be caught by `asyn for` loop. Note that a `return` statement with value, 
+inside an async generator is a syntax error.
+
+We remember from synchronous programming that apart from yielding from generators we can also send values to them:
+
+```Python
+def times2():
+    while True:
+        x = yield   # (3)
+        yield x * 2 # (4)
+
+gen = times2()
+next(gen)   # advance until the first yield (3)
+gen.send(4) # x is now 4, yield 8  (4)
+next(gen)   # go to (3)
+gen.send(9) # x is now 9, yield 18 (4)
+```
+
+We can practically do the same thing in an async generator also, take this simple example case:
+
+```Python
+import asyncio
+
+async def something(a):
+    return a*2
+
+async def something_else(a):
+    return a**2
+
+async def agen(y):
+    for i in range(0, 4):
+        x = await something(y)
+        y = yield x
+
+async def main():
+    ag = agen(1)
+    # the first advance of agen until yield, 
+    # will yield 2
+    x = await anex(ag)
+    print(f"yield of x: {x}")
+
+    while True:
+        y = await something_else(x)
+        try:
+            # send y back to the agen and assign it to y
+            x = await ag.asend(y)
+            print(f"yield of x: {x}")
+        except StopAsyncIteration:
+            break
+
+if __name__ == "__main__":
+    asyncio.run(main())
+    # Output:
+    # yield of x: 2
+    # yield of x: 8
+    # yield of x: 128
+    # yield of x: 32768 
+```
 
 
 
 
 
----
+------------------------------------------------------------------------------------------------------------
 An example from a [PyCon talk](https://youtu.be/iG6fr81xHKA?t=4m29s) to understand the idea behind async I/O:
 
 > Chess master Judit Polgár hosts a chess exhibition in which she plays multiple amateur players. 
