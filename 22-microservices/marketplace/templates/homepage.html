@@ -1,0 +1,15 @@
+<!-- homepage.html -->
+<!doctype html>
+<html lang="en">
+    <head>
+        <title>Book Recommendations</title>
+    </head>
+
+    <body>
+        <h1>Science-Fiction Books to Read</h1>
+        <ul>
+            {% for book in recommendations %}
+            <li>{{ book.title }}</li>
+            {% endfor %}
+        </ul>
+    </body>
