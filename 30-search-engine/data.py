@@ -4,9 +4,10 @@ import ast
 import time
 import logging
 import resource
-import rich.progress
 from pathlib import Path
 from datetime import datetime
+
+logger = logging.getLogger("data")
 
 
 plot_summary_filepath   = Path("data/MovieSummaries/plot_summaries.txt")
@@ -30,6 +31,7 @@ if not plot_summary_filepath.exists():
     # download and warn
     pass
 
+"""
 start = time.time()
 
 # with plot_summary_filepath.open() as plot_file:
@@ -57,6 +59,7 @@ with rich.progress.open(movie_metadata_filepath) as metadata_file:
 
 end = time.time()
 print(f"main execution time: {end-start:.2f}s.")
+"""
 
 # print(summaries[:5])
 # print(metadata[:2])
@@ -75,7 +78,7 @@ def get_records(filepath):
     line = get_line(filepath)
     yield from process_lines(line)
 
-
+""""
 start = time.time()
 r = get_records(plot_summary_filepath)
 end = time.time()
@@ -83,22 +86,49 @@ for _ in range(42306):
     print(f"{_}")
     next(r)
 print(f"yield execution time: {end-start:.2f}s.")
+"""
 
 
 # print these in logging
-print('Peak Memory Usage =', resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)
-print('User Mode Time =', resource.getrusage(resource.RUSAGE_SELF).ru_utime)
-print('System Mode Time =', resource.getrusage(resource.RUSAGE_SELF).ru_stime)
+# print('Peak Memory Usage =', resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)
+# print('User Mode Time =', resource.getrusage(resource.RUSAGE_SELF).ru_utime)
+# print('System Mode Time =', resource.getrusage(resource.RUSAGE_SELF).ru_stime)
 
 class DataHandler:
-    def __init__(self, filepath, progress_bar=False, record_timings=True):
+    def __init__(self, filepath, record_timings=True, progress_bar=False):
+        logger.debug(f"starting data handler object with parameters:\n\t \
+                filepath: {filepath}, \t \
+                record_timings: {record_timings}, \t \
+                progress_bar: {progress_bar}")
         self.filepath = filepath
-        self.progress_bar = progress_bar
         self.record_timings = record_timings
+        self.progress_bar = progress_bar
 
-    def process_lines(self):
-        summaries = [(int(line[0]), line[1]) for line in self.reader]
+        self.records = self.records()
+        print(self.records[:2])
+
+    def records(self, delimiter="\t"):
+        with self.open_file(self.filepath) as fileobject:
+            reader = csv.reader(fileobject, delimiter=delimiter)
+            records = self.process_lines(reader)
+        return records
+    
+    def open_file(self, filepath):
+        if self.progress_bar:
+            import rich.progress
+            cm = rich.progress.open(filepath, 'r')
+        else:
+            cm = open(filepath, 'r')
+        return cm
+    
+    @staticmethod
+    def process_lines(reader):
+        summaries = [(int(line[0]), line[1]) for line in reader]
+        return summaries
 
 
 class LazyDataHandler:
+    pass
 
+
+DataHandler(plot_summary_filepath)
