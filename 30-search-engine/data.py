@@ -9,40 +9,8 @@ from datetime import datetime
 
 logger = logging.getLogger("data")
 
-
 plot_summary_filepath   = Path("data/MovieSummaries/plot_summaries.txt")
 movie_metadata_filepath = Path("data/MovieSummaries/movie.metadata.tsv")
-
-
-def get_line(filepath):
-    with open(filepath, 'r') as f:
-        for line in f:
-            yield line
-
-def process_lines(lines, delimiter="\t"):
-    for line in lines:
-        record = line.strip().split(delimiter)
-        yield record
-
-def get_records(filepath):
-    line = get_line(filepath)
-    yield from process_lines(line)
-
-""""
-start = time.time()
-r = get_records(plot_summary_filepath)
-end = time.time()
-for _ in range(42306):
-    print(f"{_}")
-    next(r)
-print(f"yield execution time: {end-start:.2f}s.")
-"""
-
-
-# print these in logging
-# print('Peak Memory Usage =', resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)
-# print('User Mode Time =', resource.getrusage(resource.RUSAGE_SELF).ru_utime)
-# print('System Mode Time =', resource.getrusage(resource.RUSAGE_SELF).ru_stime)
 
 def datetime_handler(date_string):
     try:
@@ -55,11 +23,10 @@ def datetime_handler(date_string):
     return dt
 
 class DataHandler:
-    def __init__(self, filetype, filepath, record_timing=True, progress_bar=False, download_not_exists=True):
+    def __init__(self, filetype, filepath, progress_bar=False, download_not_exists=True):
         logger.debug(f"starting data handler object with parameters:\n \
                 filetype: {filetype}, \n \
                 filepath: {filepath}, \n \
-                record_timing: {record_timing}, \n \
                 progress_bar: {progress_bar}, \n \
                 download_not_exists: {download_not_exists}")
 
@@ -74,19 +41,11 @@ class DataHandler:
             logger.critical(f"file path does not exists or is not a data file, received: {filepath}")
         else:
             self.filepath = filepath
-        self.record_timing = record_timing
         self.progress_bar = progress_bar
 
-        if self.record_timing:
-            start_time = time.time()
-        self.records = self.records()
-        if self.record_timing:
-            end_time = time.time()
-            self.exec_time = f"{end_time - start_time:.3f}s"
-
-    def records(self, delimiter="\t"):
-        with self.open_file(self.filepath) as fileobject:
-            reader = csv.reader(fileobject, delimiter=delimiter)
+    def records(self):
+        with self.open_file(self.filepath) as f:
+            reader = csv.reader(f, delimiter="\t")
             records = self.process_lines(reader)
         return records
     
@@ -124,17 +83,57 @@ class DataHandler:
             logger.debug("done!")
             return metadata
 
-
-
 class LazyDataHandler(DataHandler):
-    pass
+    def __init__(self, filetype, filepath, progress_bar=False, download_not_exists=True):
+        super().__init__(filetype, filepath ,progress_bar, download_not_exists)
+        self.num_lines = self.num_lines()
+
+    def records(self):
+        rec_gen = self.yield_records(self.filepath)
+        # TODO: make it so that we only do it for a specific index of records
+        records = [next(rec_gen) for _ in range(self.num_lines)]
+        return records
+
+    def yield_records(self, filepath):
+        lines = self.get_lines()
+        yield from self.process_lines(lines)
+
+    def get_lines(self):
+        with open(self.filepath, 'r') as f:
+            for line in f:
+                yield line
+
+    def process_lines(self, lines, delimiter="\t"):
+        for line in lines:
+            record = line.strip().split(delimiter)
+            yield record
+
+    def num_lines(self):
+        def _yield_chunk(reader):
+            while True:
+                chunk = reader(1024 * 1024)
+                if not chunk:
+                    break
+                yield chunk
+        with open(self.filepath, "rb") as f:
+            count = sum(buf.count(b"\n") for buf in _yield_chunk(f.raw.read))
+        return count
 
 
 
 logging.basicConfig(format='%(asctime)s  %(name)s  %(levelname)s: %(message)s')
 logger.setLevel(logging.DEBUG)
 # data_handler = DataHandler("plot_summaries", plot_summary_filepath)
-data_handler = DataHandler("movie_metadata", movie_metadata_filepath)
-print(data_handler.records[-1])
-print(data_handler.exec_time)
+data_handler = LazyDataHandler("plot_summaries", plot_summary_filepath)
+# data_handler = DataHandler("movie_metadata", movie_metadata_filepath)
+# data_handler = DataHandler("movie_metadata", movie_metadata_filepath)
 
+records = data_handler.records()
+print(records[-1])
+
+
+# TODO: make these a decorator
+# print these in logging
+# print('Peak Memory Usage =', resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)
+# print('User Mode Time =', resource.getrusage(resource.RUSAGE_SELF).ru_utime)
+# print('System Mode Time =', resource.getrusage(resource.RUSAGE_SELF).ru_stime)
