@@ -9,19 +9,6 @@ from datetime import datetime
 
 logger = logging.getLogger("data")
 
-plot_summary_filepath   = Path("data/MovieSummaries/plot_summaries.txt")
-movie_metadata_filepath = Path("data/MovieSummaries/movie.metadata.tsv")
-
-def datetime_handler(date_string):
-    try:
-        dt = datetime.strptime(date_string, "%Y-%m-%d")
-    except ValueError:
-        try:
-            dt = datetime.strptime(date_string, "%Y")
-        except Exception as err:
-            dt = None
-    return dt
-
 class DataHandler:
     def __init__(self, filetype, filepath, progress_bar=False, download_not_exists=True):
         logger.debug(f"starting data handler object with parameters:\n \
@@ -72,7 +59,7 @@ class DataHandler:
             # (id, name, release_date, box_office_revenue, runtime, languages, countries, genres)
             metadata = [(int(line[0]), line[2], 
                     # if release_date is empty, make it None, otherwise try to convert it to datetime object
-                    (lambda line: None if line[3] == '' else datetime_handler(line[3]))(line),
+                    (lambda line: None if line[3] == '' else self.datetime_handler(line[3]))(line),
                     # if revenue or runtime is empty string, instead of converting to float, make it None
                     (lambda line: None if line[4] == '' else float(line[4]))(line), 
                     (lambda line: None if line[5] == '' else float(line[5]))(line), 
@@ -82,6 +69,18 @@ class DataHandler:
                 ) for line in reader]
             logger.debug("done!")
             return metadata
+    
+    @staticmethod
+    def datetime_handler(date_string):
+        try:
+            dt = datetime.strptime(date_string, "%Y-%m-%d")
+        except ValueError:
+            try:
+                dt = datetime.strptime(date_string, "%Y")
+            except Exception as err:
+                dt = None
+        return dt
+
 
 class LazyDataHandler(DataHandler):
     def __init__(self, filetype, filepath, progress_bar=False, download_not_exists=True):
@@ -104,9 +103,28 @@ class LazyDataHandler(DataHandler):
                 yield line
 
     def process_lines(self, lines, delimiter="\t"):
-        for line in lines:
-            record = line.strip().split(delimiter)
-            yield record
+        if self.filetype == "plot_summaries":
+            for line in lines:
+                record = line.strip().split(delimiter)
+                # a list of movie id and summary tuples: (id, summary)
+                summary = (int(record[0]), record[1])
+                yield summary
+                
+        if self.filetype == "movie_metadata":
+            for line in lines:
+                record = line.strip().split(delimiter)
+                # a list of movie metadata tuples:
+                # (id, name, release_date, box_office_revenue, runtime, languages, countries, genres)
+                metadata = (int(record[0]), record[2], 
+                        # if release_date is empty, make it None, otherwise try to convert it to datetime object
+                        (lambda record: None if record[3] == '' else self.datetime_handler(record[3]))(record),
+                        # if revenue or runtime is empty string, instead of converting to float, make it None
+                        (lambda record: None if record[4] == '' else float(record[4]))(record), 
+                        (lambda record: None if record[5] == '' else float(record[5]))(record), 
+                        list(ast.literal_eval(record[6]).values()), 
+                        list(ast.literal_eval(record[7]).values()),
+                        list(ast.literal_eval(record[8]).values()))
+                yield metadata
 
     def num_lines(self):
         def _yield_chunk(reader):
@@ -120,13 +138,17 @@ class LazyDataHandler(DataHandler):
         return count
 
 
-
 logging.basicConfig(format='%(asctime)s  %(name)s  %(levelname)s: %(message)s')
 logger.setLevel(logging.DEBUG)
+
+plot_summary_filepath   = Path("data/MovieSummaries/plot_summaries.txt")
+movie_metadata_filepath = Path("data/MovieSummaries/movie.metadata.tsv")
+
 # data_handler = DataHandler("plot_summaries", plot_summary_filepath)
-data_handler = LazyDataHandler("plot_summaries", plot_summary_filepath)
+# data_handler = LazyDataHandler("plot_summaries", plot_summary_filepath)
+
 # data_handler = DataHandler("movie_metadata", movie_metadata_filepath)
-# data_handler = DataHandler("movie_metadata", movie_metadata_filepath)
+data_handler = LazyDataHandler("movie_metadata", movie_metadata_filepath)
 
 records = data_handler.records()
 print(records[-1])
