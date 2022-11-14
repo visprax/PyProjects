@@ -19,9 +19,9 @@ def usagestat(func):
         func(*args, **kwargs)
         current_mem, peak_mem = tracemalloc.get_traced_memory()
         tend = perf_counter()
-        logger.debug(f"{func.__name__} execution time: {tend - tstart:.4f}")
-        logger.debug(f"{func.__name__} memory usage: {current_mem / 1024} KB")
-        logger.debug(f"{func.__name__} memory peak usage: {peak_mem / 1024} KB")
+        logger.debug(f"function: {func.__name__} - execution time:    {tend - tstart:.4f} s")
+        logger.debug(f"function: {func.__name__} - memory usage:      {current_mem / (1024 * 1024):.4f} MiB")
+        logger.debug(f"function: {func.__name__} - memory peak usage: {peak_mem / (1024 * 1024):.4f} MiB")
         tracemalloc.stop()
     return func_wrapper
 
