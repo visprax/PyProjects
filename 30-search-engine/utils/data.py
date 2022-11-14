@@ -88,9 +88,11 @@ class LazyDataHandler(DataHandler):
         self.num_lines = self.num_lines()
 
     def records(self):
+        logger.debug("yielding records...")
         rec_gen = self.yield_records(self.filepath)
         # TODO: make it so that we only do it for a specific index of records
         records = [next(rec_gen) for _ in range(self.num_lines)]
+        logger.debug("done!")
         return records
 
     def yield_records(self, filepath):
@@ -127,6 +129,7 @@ class LazyDataHandler(DataHandler):
                 yield metadata
 
     def num_lines(self):
+        logger.debug("counting number of lines in the data file using a buffered generator")
         def _yield_chunk(reader):
             while True:
                 chunk = reader(1024 * 1024)
@@ -135,27 +138,6 @@ class LazyDataHandler(DataHandler):
                 yield chunk
         with open(self.filepath, "rb") as f:
             count = sum(buf.count(b"\n") for buf in _yield_chunk(f.raw.read))
+        logger.info(f"number of lines: {count}")
         return count
 
-
-logging.basicConfig(format='%(asctime)s  %(name)s  %(levelname)s: %(message)s')
-logger.setLevel(logging.DEBUG)
-
-plot_summary_filepath   = Path("data/MovieSummaries/plot_summaries.txt")
-movie_metadata_filepath = Path("data/MovieSummaries/movie.metadata.tsv")
-
-# data_handler = DataHandler("plot_summaries", plot_summary_filepath)
-# data_handler = LazyDataHandler("plot_summaries", plot_summary_filepath)
-
-# data_handler = DataHandler("movie_metadata", movie_metadata_filepath)
-data_handler = LazyDataHandler("movie_metadata", movie_metadata_filepath)
-
-records = data_handler.records()
-print(records[-1])
-
-
-# TODO: make these a decorator
-# print these in logging
-# print('Peak Memory Usage =', resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)
-# print('User Mode Time =', resource.getrusage(resource.RUSAGE_SELF).ru_utime)
-# print('System Mode Time =', resource.getrusage(resource.RUSAGE_SELF).ru_stime)
