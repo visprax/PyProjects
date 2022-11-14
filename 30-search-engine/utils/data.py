@@ -1,3 +1,10 @@
+"""Handles reading and extracting data. 
+
+    This is mostly for 'CMU Movie Corpus Summary' dataset but can be extended to include other datasets, 
+    just extend the functionality of process_lines method inside each calss.
+
+"""
+
 import os
 import csv
 import ast
