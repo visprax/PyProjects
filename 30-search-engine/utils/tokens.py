@@ -1,6 +1,7 @@
 """Methods to help tokenize strings using python core libraries."""
 
 import io
+import math
 import string
 import logging
 import tokenize
@@ -78,28 +79,34 @@ def pluralize(word: str):
     plural = root + suffix
     return plural
 
-def tokens(query: str):
+def get_tokens(query: str):
     """Remove punctuations, convert to lowercase, and tokenize a given query"""
     query = query.translate(str.maketrans({x: None for x in string.punctuation}))
-    tokens = [t.string.lower() if t.string.isalpha() else t.string \ 
+    tokens = [t.string.lower() if t.string.isalpha() else t.string \
             for t in tokenize.generate_tokens(io.StringIO(query).readline)]
     # after this step we should also remove any plurality of tokens and
     # capital characters, refer to the comment of pluralize function.
     return tokens
 
-def wordset(docs: list[str]):
+def word_set(docs: list[str]):
     """Get the set of all tokens for a list of documents."""
-    tokenized_docs = [tokens(doc) for doc in docs]
-    word_set = set([token for tokenized_doc in tokenized_docs for token in tokenized_doc])
+    tokenized_docs = [get_tokens(doc) for doc in docs]
+    wordset = set([token for tokenized_doc in tokenized_docs for token in tokenized_doc])
     return wordset
 
-def termfreq(doc, token):
+def word_idx(wordset):
+    """Get a dictionary of unique words and values as indices from zero."""
+    dic = {y: x for x, y in enumerate(wordset)}
+    return dic
+
+
+def term_freq(doc, token):
     """Get the term-frequency (TF) in a document.
 
     Term-frequency is defined as the ratio of the number of occurences 
     of a term in a document to the total number of terms in that document.
     """
-    tokens = tokens(doc)
+    tokens = get_tokens(doc)
     counts = collections.Counter(tokens)
     tf = counts[token] / len(tokens)
     return tf
@@ -111,8 +118,35 @@ def inverse_docfreq(docs, token):
     number of documents to the number of documents containing the token.
     The words that occur rarely in a corpus have a high IDF score.
     """
-    tokenized_docs = [tokens(doc) for doc in docs]
+    tokenized_docs = [get_tokens(doc) for doc in docs]
+    count = sum(token in tokenized_doc for tokenized_doc in tokenized_docs)
+    # to avoid division by zero
+    if count == 0: count += 1
+    idf = math.log(len(docs) / count)
+    return idf
+
+def tfidf(docs):
+    wordset = word_set(docs)
+    wordidx = word_idx(wordset)
+    tfidf = [[0.0 for word in wordset] for doc in docs]
+    for idx, doc in enumerate(docs):
+        tokens = get_tokens(doc)
+        tokens_set = set(tokens)
+        for token in tokens_set:
+            tf = term_freq(doc, token)
+            idf = inverse_docfreq(docs, token)
+            tfidf_token_doc = tf * idf
+            tfidf[idx][wordidx[token]] = tfidf_token_doc
+    return tfidf
 
 
 
+
+# text = ['Topic sentences are similar to mini thesis statements. Like a thesis statement, a topic sentence has a specific main point. Whereas the thesis is the main point of the essay',
+ # 'the topic sentence is the main point of the paragraph. Like the thesis statement, a topic sentence has a unifying function. But a thesis statement or topic sentence alone doesn’t guarantee unity.',
+ # 'An essay is unified if all the paragraphs relate to the thesis, whereas a paragraph is unified if all the sentences relate to the topic sentence.']
+
+# wordset = word_set(text)
+# print(word_idx(wordset))
+# print(tfidf(text)[0])
 
