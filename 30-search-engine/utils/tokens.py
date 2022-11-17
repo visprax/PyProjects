@@ -21,15 +21,10 @@ def word_set(docs: list[str]):
     """Get all the unqiue tokens for a list of documents and set an index from zero."""
     tokenized_docs = [get_tokens(doc) for doc in docs]
     # we use this method as opposed to set() to get unique tokens so that the list is ordered.
-    wordset = dict.fromkeys([token for tokenized_doc in tokenized_docs for token in tokenized_doc])
+    wordset = dict.fromkeys(sorted([token for tokenized_doc in tokenized_docs\
+            for token in tokenized_doc]))
     wordset = {y: x for x, y in enumerate(wordset)}
     return wordset
-
-def word_idx(wordset):
-    """Get a dictionary of unique words and values as indices from zero."""
-    dic = {y: x for x, y in enumerate(wordset)}
-    return dic
-
 
 def term_freq(doc, token):
     """Get the term-frequency (TF) in a document.
@@ -77,6 +72,6 @@ text = ['Topic sentences are similar to mini thesis statements. Like a thesis st
  'An essay is unified if all the paragraphs relate to the thesis, whereas a paragraph is unified if all the sentences relate to the topic sentence.']
 
 wordset = word_set(text)
-print(word_idx(wordset))
+print(wordset)
 print(tf_idf(text)[0])
 
