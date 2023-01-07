@@ -6,6 +6,9 @@
 # TODO: replace stack list with a real stack!
 
 # a stack machine implementation
+
+import sys
+
 class Interpreter:
     def __init__(self):
         self.stack = []
@@ -54,19 +57,17 @@ class Interpreter:
 
         for instruction, argument in instructions:
             argval = self.parse_instruction_arg(instruction, argument, code_object)
-            if instruction == "LOAD_VALUE":
-                self.LOAD_VALUE(argval)
-            elif instruction == "LOAD_VARIABLE":
-                self.LOAD_VARIABLE(argval)
-            elif instruction == "STORE_VARIABLE":
-                self.STORE_VARIABLE(argval)
-            elif instruction == "ADD_TWO_VALUES":
-                self.ADD_TWO_VALUES()
-            elif instruction == "PRINT_VALUE":
-                self.PRINT_VALUE()
-            else:
-                print(f"{instruction} not supported!")
+            # using the fact that the opcode and the handler method have the same name!
+            try:
+                method = getattr(self, instruction)
+            except Exception as err:
+                print(f"{instruction} is not supported!")
+                sys.exit(1)
 
+            if argval is None:
+                method()
+            else:
+                method(argval)
 
 if __name__ == "__main__":
     # instructions for `4 + 5`
