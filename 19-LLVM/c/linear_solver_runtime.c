@@ -17,15 +17,20 @@ int minus_one_power(int x)
     return -1;
 }
 
-void reduce_a(double* a, double* ra, size_t n, size_t i)
+// 'ra' is the matrix 'a' with row 0 and column c removed
+void reduced_a(double* a, double* ra, size_t n, size_t c)
 {
-        for(size_t j = 0; j < n-1; j++)
-        {
-            ra[(n-1)*i + j] = a[n*i + j];
-        }
+    int idx = 0;
+    for(size_t i = 1; i < n; i++)
+        for(size_t j = 0; j < n; j++)
+            if(j != c)
+            {
+                ra[idx] = a[n*i + j];
+                idx += 1;
+            }
 }
 
-// the matrix 'a' is of size nxn
+// 'a' is of size nxn
 double det(double* a, size_t n)
 {
     if (n == 1) return a[0];
@@ -33,9 +38,8 @@ double det(double* a, size_t n)
     double d = 0.0;
     for(size_t i = 0; i < n; i++)
     {
-       // the reduced matrix of 'a' with row 0 and column i removed
        double ra[(n-1) * (n-1)]; 
-       reduce_a(a, ra, n, i);
+       reduced_a(a, ra, n, i);
 
        d += a[i] * minus_one_power(i) * det(ra, n-1);
     }
@@ -45,7 +49,8 @@ double det(double* a, size_t n)
 
 int main()
 {
-    double a[N*N] = {
+    double a[N*N] = 
+    {
         2, -1,  5,  1,
         3,  2,  2, -6,
         1,  3,  3, -1,
@@ -54,7 +59,7 @@ int main()
     double b[N] = {-3, -32, -47, 49};
     double x[N];
 
-    double d = det(a, sizeof(a) / sizeof(a[0]));
-    printf("d: %f\n", d);
+    double d = det(a, N);
+    printf("%f\n", d);
 
 }
