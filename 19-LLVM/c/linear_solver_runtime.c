@@ -3,16 +3,20 @@
  */
 
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
-#define N 5
+#define N 4
 
-double det(double *a, int n)
+double det(double *a)
 {
-    if (n == 1) return a[0];
+    if (N == 1) return a[0];
 
     double d = 0.0;
-    for(int i = 0; i < n; i++)
+    for(int i = 0; i < N*N; i++)
     {
+        double buf[N*N]; 
+        memcpy(buf, a, sizeof(buf));
 
     }
     
@@ -29,4 +33,7 @@ int main()
     };
     double b[N] = {-3, -32, -47, 49};
     double x[N];
+
+    double d = det(a);
+    /*printf("d: %f\n", d);*/
 }
