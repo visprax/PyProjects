@@ -1,5 +1,6 @@
 /*
- * Solve a system of linear equations (ax = b) using Cramer's rule.
+ * Solve a system of linear equations (ax = b) using Cramer's rule:
+ * https://en.wikipedia.org/wiki/Cramer%27s_rule
  */
 
 #include <stdio.h>
