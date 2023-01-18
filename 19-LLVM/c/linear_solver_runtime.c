@@ -4,7 +4,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 // the matrix of coefficients is of size NxN
 #define N 4
@@ -30,7 +29,8 @@ void reduced_a(double* a, double* ra, size_t n, size_t c)
             }
 }
 
-// 'a' is of size nxn
+// compute the determinant of a square matrix using Laplace's expansion formula.
+// here 'a' is of size nxn.
 double det(double* a, size_t n)
 {
     if (n == 1) return a[0];
@@ -47,6 +47,36 @@ double det(double* a, size_t n)
     return d;
 }
 
+int cramer_solve(double* a, double* x, double* b, size_t n)
+{
+    double d = det(a, n);
+    // if determinant is 0 we can't find any solutions
+    if((d < 1e-8) && (d > -1e-8))
+    {
+        return EXIT_FAILURE;
+    }
+
+    // modified 'a' with the i'th column replaced with 'b'
+    double ma[n*n];
+    for(size_t i = 0; i < n; i++)
+    {
+        for(size_t idx = 0; idx < n*n; idx++)
+        {
+            ma[idx] = a[idx];
+        }
+
+        for(size_t j = 0; j < n; j++)
+        {
+            ma[n*j + i] = b[j];
+        }
+        double md = det(ma, n);
+
+        x[i] = md / d;
+    }
+
+    return EXIT_SUCCESS;
+}
+
 int main()
 {
     double a[N*N] = 
@@ -59,7 +89,11 @@ int main()
     double b[N] = {-3, -32, -47, 49};
     double x[N];
 
-    double d = det(a, N);
-    printf("%f\n", d);
+    cramer_solve(a, x, b, N);
+    
+    for(size_t i = 0; i < N; i++)
+    {
+        printf("x[%zu]: %f\n", i, x[i]);
+    }
 
 }
