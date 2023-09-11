@@ -132,8 +132,10 @@ dmypy.json
 .pyre/
 
 # Data files
-./05-OSINT/data/tweets/*
+data/
 
 # Notes file
 notes.md
-notes.txt
+
+# Ignore scratch dir
+scratch/
